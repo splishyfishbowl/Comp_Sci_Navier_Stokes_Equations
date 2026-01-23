@@ -1,0 +1,283 @@
+\chapter{"`Methods"': Konzept, Analyse, Experiment etc.}
+
+
+\section{First task}
+\subsection{Model}
+\todo{explain problem and model}
+
+\subsection{Operator Splitting}
+
+Consider a typical PDE of structure
+$$ \partial_t \bm u =  (A+B+C)\cdot \bm u$$
+Here, $\bm u$ denotes a vector variable, e.g. the velocity in a fluid at a certain location .
+$A, B, C$ on the other hand are so called \textit{operators}. 
+Operators are terms in the PDE and can describe certain physical processes.
+For instance, consider the basic Navier-Stokes equation
+$$\partial _t T  = \Delta T - \bm u \nabla T$$.
+Here, we could set $A:= \Delta, B:= - \bm u \nabla$ and obtain:
+$$\partial _t T  = (A - B) T$$
+$A$ expresses the \todo{what does it express?}, $B$ represents advection \todo{clarify, whether we really have this problem?}.
+
+Usually, numerical methods have to be applied to solve such a problem of partial differential equations.
+As these are often computationally expensive \textit{operator splitting} provides a procedure to reduce costs for the solution of the PDE.
+We "split" the problem into subproblems, meaning that we consider each operator individually:
+\begin{align}
+\partial_t \bm{u} &= A \bm{u} \\
+\partial_t \bm{u} &= B \bm{u}
+\end{align}
+
+
+Here, we numerically solve one of the the two equations and use the result as the initial conditions for the second to solve it.
+This is repeated for all timesteps. Of course, this produces an error, as the new initial conditions for the second equation do not completely coincide with the initial conditions we used for the first equation.
+Thus, solving by integrating the operators subsequently creates an error. 
+Here, different methods of operator splitting exist and different errors are the consequence.
+In general, the error remains small if the timestep $\Delta t$ is chosen small in the numerical integration scheme.
+
+\subsubsection{First order (\todo{include author}) operator splitting}
+First order operator splitting means to solve both operators subsequently for a given timestep $\Delta t$.
+To further investigate this, consider 
+\begin{align}
+    \partial_t  \bm{u} &= (A+B)\bm{u} \\
+    \Rightarrow \partial_t  \bm{u} &= A\bm{u} \\
+    \partial_t \bm{u} &= B\bm{u} \\
+\end{align}
+
+with $A, B$ being again some operators. For our problem, these operators will be part of the advection-diffusion equation, as we see later.
+Note, that we derived two \textbf{linear} problems after we applied operator splitting. 
+
+That is why we can find simple solutions to the formulated splitted operator problems, namely  
+\begin{align}
+    u_A(t) &= e^{(t-t_0) A}u_0 \\
+    u_B(t) &= e^{(t-t_0)  B}u_0 
+\end{align}
+In our case we only want to solve for the next discrete time interval $[t_k, t_{k+1}]=[t_k, t_k + \Delta t]$ – not the whole time interval.
+That is why we modify the solutions for the first order operator splitting and rewrite them to
+
+\begin{align}
+    u_{k+1, A} &= e^{(t_{k+1} - t_k) A}u_{k, A} \\
+    u_{k+1, B} &= e^{(t_{k+1} - t_k) B}u_{k, B} 
+\end{align}.
+With $\Delta t = t_{k+1}-t_k$ we finally get the solution for each operator with respect to the discetized time step $\Delta t$:
+
+\begin{align}
+    u_{k+1, A} &= e^{\Delta t A}u_{k, A} \\
+    u_{k+1, B} &= e^{\Delta t B}u_{k, B} 
+\end{align}.
+
+For first-order operator splitting the following algorithm is applied to the abstract problem $\partial_t \bm{u}= (A+B)\bm{u}$ is split as shown into the two seperate operator problems:
+\begin{enumerate}
+    \item{Set $\bm{u}_{k,A}:= \bm{u}_k$}
+    \item{Solve $\bm{u}_{k+1, A} = e^{\Delta t A}\bm u_{k, A}$ on the next interval $[t_{k}, t_k+\Delta t]$}. 
+    \item{We obtain $\bm{u}_{k+1, A}$.}
+    \item{Consider $\bm{u}_{k+1, A}$ as the new initial condition in the second operator equation: $\bm{u}_{k,B}:=\bm{u}_{k+1,A}$}
+    \item{Solve $\bm{u}_{k+1, B} = e^{\Delta t B}\bm{u}_{k, B}=e^{\Delta t B}\bm{u}_{k+1, A}$.}
+    \item{We obtain $\bm{u}_{k+1, B}$}
+    \item {We consider $\bm{u}_{k+1, B}$ as our solution for $\bm{u}_{k+1}$}
+\end{enumerate}
+Written in a compact manner, we obtain
+$$u_{k+1}= e^{\Delta t B}e^{\Delta t A}u_k$$
+as our first-order operator splitting procedure. 
+Like already mentioned, this algorithm relies on the assumption, that for small timesteps $\Delta t$ only small difference remains between $u_{k+1,A}$ and $u_{k+1,B}$ when evaluated subsequently.
+This algorithm is simple and easy to implement. 
+\todo{include some computational efficiency stuff, maybe even related to our testing?}
+Nevertheless, the GTE error is of order $\mathcal{O}(\Delta t)$ (\todo{include source}) and can be further reduced. This leads to the second-order operator methods.
+
+
+\subsubsection{Second order operator splitting (Strang-splitting)}
+To reduce the GTE of the operator splitting scheme to an error of order $\mathcal{O}(\Delta t^2)$ the following can be applied to approximate the solution $\bm{u}_{k+1}$ at the next timestep $t_{k+1}=t_k +\Delta t$:
+\begin{equation}
+    \bm{u}_{k+1}=e^{\frac{\Delta t A}{2}}\cdot e^{{\Delta t B}}\cdot e^{\frac{\Delta t A}{2}} \bm{u}_k
+\end{equation}
+
+\subsection{Application of operator splitting on the Velocity equation \todo{is it really the name?}}
+We now apply operator splitting in the context of the velocity equation
+$$ \partial_t \bm{u} + \bm{u} \cdot \nabla \bm u + \frac{1}{\rho}\nabla p = \nu \Delta \bm{u} + \beta T\bm{e}_z $$
+and obtain three different operators:
+\begin{enumerate}
+    \item{Advection: $\partial_z \bm{u} = \bm{u}\cdot \nabla \bm{u}$}
+    \item {Diffusion + forcing: $\partial_t \bm {u} = \nu \Delta \bm{u} + \beta T_{\bm{e}_z}$}
+    \item {Projection step (Incompressibility): $\bm{u}^{k+1}= \bm{u}^*-\Delta \bm{p}, \quad \text{with } \nabla \cdot \bm{u}^{k+1}=0$ \\ The pressure acts like a Lagrangian multiplier and enforces $\nabla \bm{u}=0$}
+    
+\end{enumerate}
+
+\begin{enumerate}
+    \item{\textbf{Step 1:} \\ Ignore Incompressibility: $\partial_t \bm{u}+\bm{u} \cdot \nabla \bm{u} = \nu \cdot \Delta \bm{u} + f$}. Here, we obtain the intermediate velocity $\bm u^* \Rightarrow \nabla \cdot \bm u \neq 0$
+    \item{\textbf{Step 2:} \\ We now use this intermediate velocity to respect incompressibility and include pressure: $$ \bm{u}^{k+1} = \bm{u}^*-\nabla \bm{p}$$ We use the \textit{Helmholtz decomposition} to do this: $$\bm{u}^* = \bm{u}^\perp + \nabla \phi $$ It follows immediately, that $\bm{u}^{k+1}= \bm{u}^\perp$. We want $$\nabla \bm{u}_{k+1}=0 \Rightarrow  \nabla (\bm u^*-\nabla \bm p)=0 \Rightarrow \nabla (\bm u ^* - \nabla \bm p) = 0 \Rightarrow \nabla \bm u^* = \Delta p$$ as this gives us the Poisson equation for pressure.}
+\end{enumerate}
+
+
+Now we want to apply operator splitting for all the different terms.
+We begin with the advection operator term.
+$$\partial_t \bm{u} + a_y\partial_y \bm{u} + a_z\partial_z\bm{u} = 0$$
+Here, we defined
+$
+\bm{a} = 
+\begin{pmatrix}
+    a_y(y,z) \\
+    a_z(y,z)
+\end{pmatrix}$
+and 
+$\bm{u} = \begin{pmatrix}
+    v \\
+    w
+\end{pmatrix}$
+
+The actual splitting is now exececuted in space first. The two spatial operators for each spatial dimension lead to the following approach:
+\begin{enumerate}
+    \item{Solve $$\partial_t \bm{u} + a_y\partial_y \bm{u} = 0 $$ Or, more explicitly written: 
+    $$ \begin{cases} \partial_t v + a_y \partial_y v &= 0 \\
+    \partial_t w + a_y \partial_y w &= 0 \end{cases}$$} 
+
+    We do the same for the second spatial dimension:
+
+    \item{Solve $$\partial_t \bm{u} + a_z\partial_z \bm{u} = 0 $$ Again, more explicitly written: 
+    $$\begin{cases} \partial_t v + a_z \partial_z \bm{u} &= 0\\
+    \partial_t w + a_z \partial_z w &= 0 \end{cases}$$} 
+
+    \item{Apply Lie Splitting in time: $\bm{u}^{k+1} = A_z(\Delta t)A_y(\Delta t)\bm{u}^{k}$}
+\end{enumerate}
+
+\subsection{Upward Finite Difference Method}
+To introduce the Upward Finite Difference Method we first want to look again at the one-dimensional linear advection equation
+$$\frac{\partial_u}{\partial_t}+a\frac{\partial u}{\partial x}=0$$
+Intuitively, this equation describes a wave that propagates along the $x$-axis with velocity $a$.
+Now imagine the $x$-axis laid out horizontally in fron of you. If $a>0$, the wave propagates to the right. 
+Thus, an upwind direction would correspond to the direction in the left – towards smaller values.
+For $a<0$ this changes accordingly: The upwind direction corresponds to the direction of higher $x$-values, so to the right.
+
+That is why we will use backward finite difference methods for $a>0$ and forward finite difference methods for $a<0$.
+We will use the upwind discretization in a onedimensional case and therefore discretize the grid in the following manner:
+\[
+\begin{aligned}
+x_i &:= i \,\Delta x, \quad i = 0,\dots,N \\
+t^n &:= n \,\Delta t
+\end{aligned}
+\]
+\todo{also define discrete no of steps for Time? So maybe $N_x$ and $N_t$?}
+
+
+As already described, we will use different methods depending on the exact value of $a$ to ensure the upwind finite difference scheme.
+\begin{enumerate}
+    \item{$a > 0$ (backward): $$\partial_x \bm{u} \approx \frac{\bm{u}_i - \bm{u}_{i-1}}{\Delta x} $$}
+    \item{$a < 0$ (forward): $$\partial_x \bm{u} \approx \frac{\bm{u}_{i+1} - \bm{u}_{i}}{\Delta x} $$}
+\end{enumerate}
+
+After executing th step for the spatial dimensions, we proceed with the discrete step in time:
+$$\frac{\bm{u}_{i+1}^n - \bm{u}_{i}^{n+1}}{\Delta t} = -a(\partial_x\bm{u})^n_i $$
+
+
+\begin{enumerate}
+\item $a > 0$ (backward):
+\begin{align}
+\frac{\bm{u}_{i+1}^n - \bm{u}_{i}^{n+1}}{\Delta t}
+  &= -a(\partial_x \bm{u})^n_i \\
+\Rightarrow \bm{u}_i^{n+1} - \bm{u}_i^n
+  &= -a \frac{\Delta t}{\Delta x}(\bm{u}_i^n - \bm{u}_{i-1}^n) \\
+\Rightarrow \bm{u}_i^{n+1}
+  &= \left(1 - a\frac{\Delta t}{\Delta x}\right)\bm{u}_i^n
+     + a\frac{\Delta t}{\Delta x}\bm{u}_{i-1}^n \\
+\Rightarrow \bm{u}_i^{n+1}
+  &= A_1 \bm{u}_i^n
+\end{align}
+
+\item $a < 0$ (forward):
+\begin{align}
+\frac{\bm{u}_{i+1}^n - \bm{u}_{i}^{n+1}}{\Delta t}
+  &= -a(\partial_x \bm{u})^n_i \\
+\Rightarrow \bm{u}_i^{n+1} - \bm{u}_i^n
+  &= -a \frac{\Delta t}{\Delta x}(\bm{u}_{i+1}^n - \bm{u}_i^n) \\
+\Rightarrow \bm{u}_i^{n+1}
+  &= \left(1 - a\frac{\Delta t}{\Delta x}\right)\bm{u}_i^n
+     - a\frac{\Delta t}{\Delta x}\bm{u}_{i+1}^n \\
+\Rightarrow \bm{u}_i^{n+1}
+  &= A_2 \bm{u}_i^n
+\end{align}
+\end{enumerate}
+
+Thus, we obtained our operator for each upwind case which depends only on the sign of $a$.
+To shorten the emerging equations for all of our discretized locations we will write the operator in a compact matrix notation.
+
+$$ 
+A_1 = \begin{pmatrix}
+ \left(1-a\frac{\Delta t}{\Delta x}\right) & 0 &  & \dots & 0 \\
+ a\frac{\Delta t}{\Delta x} & \ddots &  & & \vdots \\
+ 0 & \ddots & \ddots & & \vdots \\
+ \vdots & & \ddots & \ddots & 0 \\
+ 0 & \dots & 0 & a\frac{\Delta t}{\Delta x} & \left(1-a\frac{\Delta t}{\Delta x}\right) \\
+\end{pmatrix} $$
+
+$$ 
+A_2 = \begin{pmatrix}
+ \left(1-a\frac{\Delta t}{\Delta x}\right) & -a\frac{\Delta t}{\Delta x} & 0 & \dots & 0 \\
+ 0 & \ddots & \ddots & & \vdots \\
+ &  & \ddots & \ddots & 0 \\
+ \vdots & & & \ddots & -a\frac{\Delta t}{\Delta x}\\
+ 0 & \dots &  & 0 & \left(1-a\frac{\Delta t}{\Delta x}\right) \\
+\end{pmatrix} $$
+
+\subsubsection*{Stability of the Operators}
+In general, the stability condition for a matrix operator $A$ is given by $\|A\|_{\infty} \leq 1$.
+We will investigate our both operators $A_1$ (corresponds to $a > 0$ and therefore backward finite difference method) and $A_2$ (corresponds to $a < 0$ and therefore forward finite difference method) with respect to this stability condition.
+
+\begin{align}
+    \|A_1\|_{\infty} &= \left|a\frac{\Delta t}{\Delta x}\right| + \left|1- a \frac{\Delta t}{\Delta x}\right| \leq 1 \\
+    \Rightarrow^{a> 0}  \left|1- a \frac{\Delta t}{\Delta x}\right| &\leq 1 - a \frac{\Delta t}{\Delta x} \\
+    \Rightarrow 1 - a\frac{\Delta t}{\Delta x} &\geq 0 \\
+    \Rightarrow a \frac{\Delta t}{\Delta x}&\leq 1 
+\end{align}
+
+Repeating this for our second operator $A_2$ we get
+\begin{align}
+    \|A_2\|_{\infty} &= \left|a\frac{\Delta t}{\Delta x}\right| + \left|1- a \frac{\Delta t}{\Delta x}\right| \leq 1 \\
+    \Rightarrow^{a> 0}  \left|1- a \frac{\Delta t}{\Delta x}\right| &\leq 1 + a \frac{\Delta t}{\Delta x} \\
+    \Rightarrow 1 + a\frac{\Delta t}{\Delta x} &\geq 0 \\
+    \Rightarrow - a \frac{\Delta t}{\Delta x}&\leq 1 
+\end{align}
+
+and, thus, obtain $$\left|a\frac{\Delta t}{\Delta x}\right| \leq 1$$ as our general stability condition for our operator.
+
+\subsection{Twodimensional upwind scheme with operator splitting}
+We now want to jointly apply operator splitting and the upwind finite difference method on our twodimensional advection equation.
+Therefore, we define $u_{ij}^n := u(t^n, y_i, z_i)$ and assume an equidistant grid as the discretized version of our problem. 
+Therefore we declare $\Delta y$ and $\Delta z$ as the distances between discrete grid points in space.
+
+We first want to solve the advection term in the $y$ direction. We fix a value $z_j$ and solve the resulting equation $$\partial_t \bm{u} + a_y\partial_y \bm{u} = 0$$
+Whether forward or backward finite difference method is applied depends on $a$ again:
+\[
+(\partial_y\bm{u})_{ij}=
+\begin{cases}
+    \frac{\bm{u}_{ij}-\bm{u}_{i-1 \,j}}{\Delta y} \quad a_y > 0 \\
+     \frac{\bm{u}_{i+1\,j}-\bm{u}_{i\,j}}{\Delta y} \quad a_y < 0 \\
+\end{cases}
+\]
+
+As a result of our first operator we obtain $$u_{ij}^*= u_{ij}^n - \Delta t a_{y,ij}(\partial_y \bm{u})_ij$$ where we ensure $$a_y\frac{\Delta t}{\Delta y}\leq 1$$.
+We use this result to proceed with the solution of the $z$-coordinate corresponding to the second operator:
+$$\partial_t \bm{u} + a_z\partial_z \bm{u} = 0$$
+We define analogously
+\[
+(\partial_y\bm{u}^*)_{ij}=
+\begin{cases}
+    \frac{\bm{u}^*_{ij}-\bm{u}^*_{i-1 \,j}}{\Delta y} \quad a_y > 0 \\
+     \frac{\bm{u}^*_{i+1\,j}-\bm{u}^*_{i\,j}}{\Delta y} \quad a_y < 0 \\
+\end{cases}
+\]
+ Using the result from the first splitted operator we are now able to compute
+$$u_{ij}^{n+1}= u_{ij}^* - \Delta t a_{z,ij}(\partial_z \bm{u})_ij$$
+
+We ensure stability in this case as well by respecting $\frac{|a_z|\Delta t}{\Delta z}\leq 1$.
+
+We can now derive a stability condition for all of our discretized points in space.
+We first obtain $$\max |a_y|= \max_{i,j}|a_y(y_i,z_j)|$$ and 
+$$\max |a_z|= \max_{i,j}|a_z(y_i,z_j)|$$.
+By the help of these variables we can now deduce the overall constraint for $\Delta t$, that is neccessary to ensure stability:
+$$ \Delta t \leq \min{\left(\frac{\Delta y}{\max|a_y|}, \frac{\Delta z}{\max|a_z|}\right)}$$
+
+Summarized, we successfully implemented operator splitting and upwind finite differende method for the linear advection term and ensured stability all over our domain.
+\todo{boundary conditions implementation}
+\section{Second task}
+
+
+
+\section{Further tasks}
+

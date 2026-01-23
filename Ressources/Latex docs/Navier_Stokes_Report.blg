@@ -1,6 +1,6 @@
 This is BibTeX, Version 0.99d (TeX Live 2023/Debian)
 Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
-The top-level auxiliary file: Example_economy_computer_science.aux
+The top-level auxiliary file: Navier_Stokes_Report.aux
 A level-1 auxiliary file: ./Titel/titel.aux
 A level-1 auxiliary file: ./Chapter/abstract_eng.aux
 The style file: apacite.bst
@@ -17,7 +17,7 @@ Database file #1: ./Literature/sources.bib
 apacite.bst [2013/07/21 v6.03 APA bibliography style]
 You've used 1 entry,
             6951 wiz_defined-function locations,
-            1282 strings with 11078 characters,
+            1282 strings with 11054 characters,
 and the built_in function-call counts, 1576 in all, are:
 = -- 187
 > -- 10

@@ -54,13 +54,16 @@ nu = 0.01                # kinematic viscosity
 # INITIAL CONDITIONS
 # ============================================================
 
-y = np.linspace(0, Ly, Ny)
-z = np.linspace(0, Lz, Nz)
+y = np.linspace(0, Ly, Ny, endpoint=False) # periodic
+z = np.linspace(0, Lz, Nz, endpoint=True)  # walls included
 Y, Z = np.meshgrid(y, z, indexing="ij")
 
-v = np.sin(np.pi * Y) * np.cos(np.pi * Z)   # velocity in y-direction
-w = -np.cos(np.pi * Y) * np.sin(np.pi * Z)  # velocity in z-direction
-p = np.zeros((Ny, Nz))   # pressure field
+ky = 2*np.pi / Ly
+kz = np.pi / Lz
+
+v = np.sin(ky*Y) * np.cos(kz*Z)             # velocity in y-direction
+w = -(ky/kz) * np.cos(ky*Y) * np.sin(kz*Z)  # velocity in z-direction
+p = np.zeros((Ny, Nz))                      # pressure field
 
 # ============================================================
 # FINITE DIFFERENCE OPERATORS
@@ -69,24 +72,37 @@ p = np.zeros((Ny, Nz))   # pressure field
 def divergence(v, w):
     '''
     ∇ ⋅ u = ∂v/∂y + ∂w/∂z
+    periodic in y via roll, walls in z via central interior
     '''
-    div = np.zeros_like(v)
-    div[1:-1, 1:-1] = (
-        (v[2:, 1:-1] - v[:-2, 1:-1]) / (2*dy) +
-        (w[1:-1, 2:] - w[1:-1, :-2]) / (2*dz)
-    )
-    return div
+    v, w = apply_velocity_bc(v.copy(), w.copy())
+
+    dv_dy = (np.roll(v, -1, axis=0) - np.roll(v, 1, axis=0)) / (2*dy)
+
+    dw_dz = np.zeros_like(w)
+    dw_dz[:, 1:-1] = (w[:, 2:] - w[:, :-2]) / (2*dz)
+    # one-sided at walls 
+    dw_dz[:, 0]  = (w[:, 1] - w[:, 0]) / dz
+    dw_dz[:, -1] = (w[:, -1] - w[:, -2]) / dz
+
+    return dv_dy + dw_dz
 
 
 def gradient(p):
     '''
     ∇p = (∂p/∂y, ∂p/∂z)
+    periodic in y via roll
+    Neumann in z handled by copying adjacent values before derivative
     '''
-    dpdy = np.zeros_like(p)
-    dpdz = np.zeros_like(p)
+    p = p.copy()
+    p[:, 0]  = p[:, 1]
+    p[:, -1] = p[:, -2]
 
-    dpdy[1:-1, 1:-1] = (p[2:, 1:-1] - p[:-2, 1:-1]) / (2*dy)
-    dpdz[1:-1, 1:-1] = (p[1:-1, 2:] - p[1:-1, :-2]) / (2*dz)
+    dpdy = (np.roll(p, -1, axis=0) - np.roll(p, 1, axis=0)) / (2*dy)
+
+    dpdz = np.zeros_like(p)
+    dpdz[:, 1:-1] = (p[:, 2:] - p[:, :-2]) / (2*dz)
+    dpdz[:, 0]  = (p[:, 1] - p[:, 0]) / dz
+    dpdz[:, -1] = (p[:, -1] - p[:, -2]) / dz
 
     return dpdy, dpdz
 
@@ -94,13 +110,22 @@ def gradient(p):
 def laplacian(f):
     '''
     Δf = ∂²f/∂y² + ∂²f/∂z²
+    periodic in y via roll
+    in z: central interior + reflection at boundaries (Neumann-type)
     '''
-    lap = np.zeros_like(f)
-    lap[1:-1, 1:-1] = (
-        (f[2:, 1:-1] - 2*f[1:-1, 1:-1] + f[:-2, 1:-1]) / dy**2 +
-        (f[1:-1, 2:] - 2*f[1:-1, 1:-1] + f[1:-1, :-2]) / dz**2
-    )
-    return lap
+    f = f.copy()
+    # reflect in z for a stable 2nd derivative near walls
+    f[:, 0]  = f[:, 1]
+    f[:, -1] = f[:, -2]
+
+    d2y = (np.roll(f, -1, axis=0) - 2*f + np.roll(f, 1, axis=0)) / (dy**2)
+
+    d2z = np.zeros_like(f)
+    d2z[:, 1:-1] = (f[:, 2:] - 2*f[:, 1:-1] + f[:, :-2]) / (dz**2)
+    d2z[:, 0]  = (f[:, 1] - 2*f[:, 0] + f[:, 1]) / (dz**2)
+    d2z[:, -1] = (f[:, -2] - 2*f[:, -1] + f[:, -2]) / (dz**2)
+
+    return d2y + d2z
 
 # ============================================================
 # PREDICTOR STEP
@@ -122,11 +147,25 @@ def predictor_step(v, w):
     dw_dy = np.zeros_like(w)
     dw_dz = np.zeros_like(w)
 
+    # enforce BCs in z 
+    v, w = apply_velocity_bc(v.copy(), w.copy())
+
     # approximate spatial derivatives using central difference on interior points. Time integration uses explicit forward Euler
-    dv_dy[1:-1, 1:-1] = (v[2:, 1:-1] - v[:-2, 1:-1]) / (2*dy) # ∂v/∂y ≈ (v[i+1, j] - v[i-1, j]) / (2*dy)
-    dv_dz[1:-1, 1:-1] = (v[1:-1, 2:] - v[1:-1, :-2]) / (2*dz) # ∂v/∂z ≈ (v[i, j+1] - v[i, j-1]) / (2*dz)
-    dw_dy[1:-1, 1:-1] = (w[2:, 1:-1] - w[:-2, 1:-1]) / (2*dy) # ∂w/∂y ≈ (w[i+1, j] - w[i-1, j]) / (2*dy)
-    dw_dz[1:-1, 1:-1] = (w[1:-1, 2:] - w[1:-1, :-2]) / (2*dz) # ∂w/∂z ≈ (w[i, j+1] - w[i, j-1]) / (2*dz)
+    # periodic y derivatives via roll
+    dv_dy = (np.roll(v, -1, axis=0) - np.roll(v,  1, axis=0)) / (2*dy)
+    # dv_dy[1:-1, 1:-1] = (v[2:, 1:-1] - v[:-2, 1:-1]) / (2*dy) # ∂v/∂y ≈ (v[i+1, j] - v[i-1, j]) / (2*dy)
+    dw_dy = (np.roll(w, -1, axis=0) - np.roll(w,  1, axis=0)) / (2*dy)
+    # dw_dy[1:-1, 1:-1] = (w[2:, 1:-1] - w[:-2, 1:-1]) / (2*dy) # ∂w/∂y ≈ (w[i+1, j] - w[i-1, j]) / (2*dy)
+
+    # # z derivatives (central interior + one-sided at walls)
+    dv_dz[:, 1:-1] = (v[:, 2:] - v[:, :-2]) / (2*dz)
+    dv_dz[:, 0]  = (v[:, 1] - v[:, 0]) / dz
+    dv_dz[:, -1] = (v[:, -1] - v[:, -2]) / dz
+    dw_dz[:, 1:-1] = (w[:, 2:] - w[:, :-2]) / (2*dz)
+    dw_dz[:, 0]  = (w[:, 1] - w[:, 0]) / dz
+    dw_dz[:, -1] = (w[:, -1] - w[:, -2]) / dz
+    # dv_dz[1:-1, 1:-1] = (v[1:-1, 2:] - v[1:-1, :-2]) / (2*dz) # ∂v/∂z ≈ (v[i, j+1] - v[i, j-1]) / (2*dz)
+    # dw_dz[1:-1, 1:-1] = (w[1:-1, 2:] - w[1:-1, :-2]) / (2*dz) # ∂w/∂z ≈ (w[i, j+1] - w[i, j-1]) / (2*dz)
 
     # convection terms
     conv_v = v * dv_dy + w * dv_dz # (u ⋅ ∇)v = v(∂v/∂y) + w(∂v/∂z)
@@ -146,10 +185,13 @@ def predictor_step(v, w):
 # PRESSURE POISSON SOLVER (JACOBI METHOD)
 # ============================================================
 
-def pressure_poisson(p, rhs, max_iter=500, tol=1e-5):
+def pressure_poisson(p, rhs, max_iter=5000, tol=1e-8):
     '''
     computes the pressure field p by solving the Poisson equation that arises
-    from enforcing incompressibility in Chorin's projection method.
+    from enforcing incompressibility in Chorin's projection method. Solve the Δp = rhs with:
+        - periodic in y
+        - Neumann BCs in z (∂p/∂n = 0)
+        - mean(p) = 0 to fix the gauge freedom 
     parameters:
         p: initial guess for pressure field (2D array)
         rhs: right-hand side of the Poisson equation (2D array); rhs = (rho/dt) * ∇ ⋅ u*
@@ -157,28 +199,42 @@ def pressure_poisson(p, rhs, max_iter=500, tol=1e-5):
         p: solution of the Poisson equation Δp = rhs with Neumann BCs
 
     '''
-    p_new = np.zeros_like(p)
 
-    for _ in range(max_iter):
+    p = p.copy()
+    rhs = rhs - rhs.mean()   # compatibility for Neumann Poisson
+    # p_new = np.zeros_like(p)
+
+    for _ in range(max_iter): # p[i, j] = ((p[i+1, j] + p[i-1, j]) * dz^2 + (p[i, j+1] + p[i, j-1]) * dy^2 - rhs[i, j] * dy^2 * dz^2) / (2 * (dy^2 + dz^2))
+        p_old = p.copy()
+
+        # enforce Neumann in z before update
+        p[:, 0]  = p[:, 1]
+        p[:, -1] = p[:, -2]
+
+        # Jacobi update: periodic y via roll, z via indexing
+        p_y_plus  = np.roll(p_old, -1, axis=0)
+        p_y_minus = np.roll(p_old,  1, axis=0)
+
+        # z neighbors with Neumann reflection
+        p_z_plus = np.zeros_like(p)
+        p_z_minus = np.zeros_like(p)
+        p_z_plus[:, :-1] = p_old[:, 1:]
+        p_z_plus[:, -1]  = p_old[:, -2]
+        p_z_minus[:, 1:] = p_old[:, :-1]
+        p_z_minus[:, 0]  = p_old[:, 1]
+
         # discrete Lapacian
-        p_new[1:-1, 1:-1] = (
-            ((p[2:, 1:-1] + p[:-2, 1:-1]) * dz**2 +
-             (p[1:-1, 2:] + p[1:-1, :-2]) * dy**2 -
-             rhs[1:-1, 1:-1] * dy**2 * dz**2)
-            / (2 * (dy**2 + dz**2))
-        ) # p[i, j] = ((p[i+1, j] + p[i-1, j]) * dz^2 + (p[i, j+1] + p[i, j-1]) * dy^2 - rhs[i, j] * dy^2 * dz^2) / (2 * (dy^2 + dz^2))
+        p = ((p_y_plus + p_y_minus) * dz**2 +
+             (p_z_plus + p_z_minus) * dy**2 -
+             rhs * dy**2 * dz**2) / (2*(dy**2 + dz**2))
 
-        # Neumann BC ∂p/∂n = 0 → pressure doesn't change across the boundary, so we can just copy the adjacent interior value to the ghost cells
-        p_new[0, :] = p_new[1, :]   # y = 0 boundary
-        p_new[-1, :] = p_new[-2, :] # y = Ly boundary
-        p_new[:, 0] = p_new[:, 1]   # z = 0 boundary
-        p_new[:, -1] = p_new[:, -2] # z = Lz boundary
+        # Neumann in z + gauge fix
+        p[:, 0]  = p[:, 1]
+        p[:, -1] = p[:, -2]
+        p -= p.mean()
 
-        # convergence check -- iterate until the maximum change in pressure is below the tolerance level
-        if np.max(np.abs(p_new - p)) < tol:
+        if np.max(np.abs(p - p_old)) < tol:
             break
-
-        p[:] = p_new[:]
 
     return p
 
@@ -204,15 +260,14 @@ def projection_step(v_star, w_star, p):
 # ============================================================
 
 def apply_velocity_bc(v, w):
-    # periodic in y
-    v[0, :] = v[-2, :] # v[0, j] = v[Ny-2, j]
-    v[-1, :] = v[1, :] # v[Ny-1, j] = v[1, j]
-    w[0, :] = w[-2, :] # w[0, j] = w[Ny-2, j]
-    w[-1, :] = w[1, :] # w[Ny-1, j] = w[1, j]
 
-    # walls in z
+    # walls in z: w = 0
     w[:, 0] = 0.0   # w[i, 0] = 0.0
     w[:, -1] = 0.0  # w[i, Nz-1] = 0.0
+
+    # free-slip for v at walls (∂v/∂n = 0)
+    v[:, 0] = v[:, 1]   # v[i, 0] = v[i, 1]
+    v[:, -1] = v[:, -2] # v[i, Nz-1
 
     return v, w
 

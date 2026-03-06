@@ -45,7 +45,7 @@ def upwind_step(field, a, delta, dt, axis, periodic=True):
             deriv = np.zeros_like(field)
             if axis == 0: deriv[1:, :] = (field[1:, :] - field[:-1, :]) / delta
             else:         deriv[:, 1:] = (field[:, 1:] - field[:, :-1]) / delta
-    else: # TODO: what if a is zero? Can a even BE zero?
+    else:
         # Forward finite difference 
         if periodic:
             deriv = (np.roll(field, -1, axis=axis) - field) / delta

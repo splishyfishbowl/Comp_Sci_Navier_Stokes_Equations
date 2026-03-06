@@ -29,18 +29,16 @@ methods built so far. Implement initial conditions to test your code, check the 
 import numpy as np
 import matplotlib.pyplot as plt
 
-# TODO: put this all in a main method for organization and import the functions from separate files for better modularity and readability
-
 # ============================================================
-# DEFINE DOMAIN AND NUMERICAL PARAMETERS
+# GLOBAL PARAMETERS
 # ============================================================
 
 Ny, Nz = 50, 50          # grid points in y and z directions
 Ly, Lz = 1.0, 1.0        # domain size in y and z directions
 
 # grid spacing (uniform grid)
-dy = Ly / (Ny - 1)
-dz = Lz / (Nz - 1)
+dy = Ly / Ny            # periodic in y
+dz = Lz / (Nz - 1)      # walls included in z
 
 # time discretization
 dt = 0.001               # time step
@@ -51,19 +49,43 @@ rho = 1.0                # density
 nu = 0.01                # kinematic viscosity
 
 # ============================================================
-# INITIAL CONDITIONS
+# GRID / INITIAL CONDITIONS
 # ============================================================
 
-y = np.linspace(0, Ly, Ny, endpoint=False) # periodic
-z = np.linspace(0, Lz, Nz, endpoint=True)  # walls included
-Y, Z = np.meshgrid(y, z, indexing="ij")
+def create_grid():
+    y_endpoint = False  # periodic in y
+    z_endpoint = True   # walls in z
+    y = np.linspace(0, Ly, Ny, y_endpoint)  # periodic
+    z = np.linspace(0, Lz, Nz, z_endpoint)  # walls included
+    Y, Z = np.meshgrid(y, z, indexing="ij")
+    return y, z, Y, Z
 
-ky = 2*np.pi / Ly
-kz = np.pi / Lz
+def initial_conditions(Y, Z):
+    ky = 2*np.pi / Ly
+    kz = np.pi / Lz
 
-v = np.sin(ky*Y) * np.cos(kz*Z)             # velocity in y-direction
-w = -(ky/kz) * np.cos(ky*Y) * np.sin(kz*Z)  # velocity in z-direction
-p = np.zeros((Ny, Nz))                      # pressure field
+    v = np.sin(ky*Y) * np.cos(kz*Z)             # velocity in y-direction
+    w = -(ky/kz) * np.cos(ky*Y) * np.sin(kz*Z)  # velocity in z-direction
+    p = np.zeros((Ny, Nz))                      # pressure field
+    return v, w, p
+
+# ============================================================
+# BOUNDARY CONDITIONS
+# ============================================================
+
+def apply_velocity_bc(v, w):
+    v = v.copy()
+    w = w.copy()
+
+    # walls in z: w = 0
+    w[:, 0] = 0.0   # w[i, 0] = 0.0
+    w[:, -1] = 0.0  # w[i, Nz-1] = 0.0
+
+    # free-slip for v at walls (∂v/∂n = 0)
+    v[:, 0] = v[:, 1]   # v[i, 0] = v[i, 1]
+    v[:, -1] = v[:, -2] # v[i, Nz-1] = v[i, Nz-2]
+
+    return v, w
 
 # ============================================================
 # FINITE DIFFERENCE OPERATORS
@@ -86,7 +108,6 @@ def divergence(v, w):
 
     return dv_dy + dw_dz
 
-
 def gradient(p):
     '''
     ∇p = (∂p/∂y, ∂p/∂z)
@@ -105,7 +126,6 @@ def gradient(p):
     dpdz[:, -1] = (p[:, -1] - p[:, -2]) / dz
 
     return dpdy, dpdz
-
 
 def laplacian(f):
     '''
@@ -128,6 +148,60 @@ def laplacian(f):
     return d2y + d2z
 
 # ============================================================
+# ADVECTION
+# ============================================================
+
+def upwind_step(field, a, delta, dt, axis, periodic=True):
+    '''
+    First-order upwind update for u_t + a * u_x = 0 along a single axis.
+    Supports scalar a or array a(y,z).
+
+    periodic=True: uses np.roll for neighbors
+    periodic=False: uses one-sided interior differences; boundaries get zero-derivative by default
+                    (you can overwrite boundaries via BCs after the step).
+    '''
+    field = field.copy()
+    a = np.asarray(a)
+
+    if periodic:
+        f_plus  = np.roll(field, -1, axis=axis)
+        f_minus = np.roll(field,  1, axis=axis)
+
+        # backward (a>0): (f - f_minus)/delta
+        db = (field - f_minus) / delta
+        # forward  (a<0): (f_plus - f)/delta
+        df = (f_plus - field) / delta
+
+        deriv = np.where(a > 0, db, np.where(a < 0, df, 0.0))
+        return field - dt * a * deriv
+
+    # non-periodic: compute interior only
+    deriv = np.zeros_like(field)
+    db = np.zeros_like(field)
+    df = np.zeros_like(field)
+
+    if axis == 0:  # y-direction
+        # backward difference for i=1..end
+        db = np.zeros_like(field); db[1:, :]  = (field[1:, :] - field[:-1, :]) / delta
+        # forward difference for i=0..end-1
+        df = np.zeros_like(field); df[:-1, :] = (field[1:, :] - field[:-1, :]) / delta
+    else:          # z-direction
+        db = np.zeros_like(field); db[:, 1:]  = (field[:, 1:] - field[:, :-1]) / delta
+        df = np.zeros_like(field); df[:, :-1] = (field[:, 1:] - field[:, :-1]) / delta
+
+    deriv = np.where(a > 0, db, np.where(a < 0, df, 0.0))
+    return field - dt * a * deriv
+
+def advect_split_upwind(q, a_y, a_z):
+    """
+    Operator-split advection:
+    first y-direction, then z-direction
+    """
+    q1 = upwind_step(q, a_y, dy, dt, axis=0, periodic=True)
+    q2 = upwind_step(q1, a_z, dz, dt, axis=1, periodic=False)
+    return q2
+
+# ============================================================
 # PREDICTOR STEP
 # ============================================================
 
@@ -135,49 +209,27 @@ def predictor_step(v, w):
     '''
     computes a temporary velocity u* = (v*, w*) by solving the momentum equation without the pressure term,
     producing as velocity which isn't divergence free.
-    This solves for the u* in the predictor equation in Chorin's projection method: (u* - u^n)/dt = -(u^n · ∇)u^n + nu(Δu^n)
+    This solves for the u* in the predictor equation in Chorin's projection method: 
+        (u* - u^n)/dt = -(u^n · ∇)u^n + nu(Δu^n)
+        solving for u* gives: u* = u^n + dt[-(u^n · ∇)u^n + nu Δu^n]
 
     Componentwise:
         (v* - v^n)/dt = -((v^n)(∂v^n/∂y) + (w^n)(∂v^n/∂z)) + nu(Δv^n)
         (w* - w^n)/dt = -((v^n)(∂w^n/∂y) + (w^n)(∂w^n/∂z)) + nu(Δw^n)
     '''
 
-    dv_dy = np.zeros_like(v)
-    dv_dz = np.zeros_like(v)
-    dw_dy = np.zeros_like(w)
-    dw_dz = np.zeros_like(w)
-
     # enforce BCs in z 
-    v, w = apply_velocity_bc(v.copy(), w.copy())
+    v, w = apply_velocity_bc(v, w)
 
-    # approximate spatial derivatives using central difference on interior points. Time integration uses explicit forward Euler
-    # periodic y derivatives via roll
-    dv_dy = (np.roll(v, -1, axis=0) - np.roll(v,  1, axis=0)) / (2*dy)
-    # dv_dy[1:-1, 1:-1] = (v[2:, 1:-1] - v[:-2, 1:-1]) / (2*dy) # ∂v/∂y ≈ (v[i+1, j] - v[i-1, j]) / (2*dy)
-    dw_dy = (np.roll(w, -1, axis=0) - np.roll(w,  1, axis=0)) / (2*dy)
-    # dw_dy[1:-1, 1:-1] = (w[2:, 1:-1] - w[:-2, 1:-1]) / (2*dy) # ∂w/∂y ≈ (w[i+1, j] - w[i-1, j]) / (2*dy)
+    # advect each component by the current velocity field
+    v_adv = advect_split_upwind(v, v, w)
+    w_adv = advect_split_upwind(w, v, w)
 
-    # # z derivatives (central interior + one-sided at walls)
-    dv_dz[:, 1:-1] = (v[:, 2:] - v[:, :-2]) / (2*dz)
-    dv_dz[:, 0]  = (v[:, 1] - v[:, 0]) / dz
-    dv_dz[:, -1] = (v[:, -1] - v[:, -2]) / dz
-    dw_dz[:, 1:-1] = (w[:, 2:] - w[:, :-2]) / (2*dz)
-    dw_dz[:, 0]  = (w[:, 1] - w[:, 0]) / dz
-    dw_dz[:, -1] = (w[:, -1] - w[:, -2]) / dz
-    # dv_dz[1:-1, 1:-1] = (v[1:-1, 2:] - v[1:-1, :-2]) / (2*dz) # ∂v/∂z ≈ (v[i, j+1] - v[i, j-1]) / (2*dz)
-    # dw_dz[1:-1, 1:-1] = (w[1:-1, 2:] - w[1:-1, :-2]) / (2*dz) # ∂w/∂z ≈ (w[i, j+1] - w[i, j-1]) / (2*dz)
+    # diffusion (still explicit)
+    v_star = v_adv + dt * nu * laplacian(v)
+    w_star = w_adv + dt * nu * laplacian(w)
 
-    # convection terms
-    conv_v = v * dv_dy + w * dv_dz # (u ⋅ ∇)v = v(∂v/∂y) + w(∂v/∂z)
-    conv_w = v * dw_dy + w * dw_dz # (u ⋅ ∇)w = v(∂w/∂y) + w(∂w/∂z)
-
-    # diffusion terms 
-    diff_v = nu * laplacian(v) # nu Δv
-    diff_w = nu * laplacian(w) # nu Δw
-
-    # explicit forward Euler time update (full predictor step)
-    v_star = v + dt * (-conv_v + diff_v) # v* = v^n + dt * (-(u^n ⋅ ∇)v^n + nu Δv^n)
-    w_star = w + dt * (-conv_w + diff_w) # w* = w^n + dt * (-(u^n ⋅ ∇)w^n + nu Δw^n)
+    v_star, w_star = apply_velocity_bc(v_star, w_star)
 
     return v_star, w_star
 
@@ -185,7 +237,7 @@ def predictor_step(v, w):
 # PRESSURE POISSON SOLVER (JACOBI METHOD)
 # ============================================================
 
-def pressure_poisson(p, rhs, max_iter=5000, tol=1e-8):
+def pressure_poisson(p, rhs, max_iter=20000, tol_rel=1e-5):
     '''
     computes the pressure field p by solving the Poisson equation that arises
     from enforcing incompressibility in Chorin's projection method. Solve the Δp = rhs with:
@@ -195,6 +247,9 @@ def pressure_poisson(p, rhs, max_iter=5000, tol=1e-8):
     parameters:
         p: initial guess for pressure field (2D array)
         rhs: right-hand side of the Poisson equation (2D array); rhs = (rho/dt) * ∇ ⋅ u*
+        max_iter: maximum number of Jacobi iterations
+        tol_update: tolerance for maximum change in p between iterations for convergence (pressure change)
+        tol_res: tolerance for maximum residual of the Poisson equation for convergence (Poisson residual)
     returns:
         p: solution of the Poisson equation Δp = rhs with Neumann BCs
 
@@ -202,38 +257,39 @@ def pressure_poisson(p, rhs, max_iter=5000, tol=1e-8):
 
     p = p.copy()
     rhs = rhs - rhs.mean()   # compatibility for Neumann Poisson
-    # p_new = np.zeros_like(p)
+    rhs_scale = np.max(np.abs(rhs)) + 1e-14
 
     for _ in range(max_iter): # p[i, j] = ((p[i+1, j] + p[i-1, j]) * dz^2 + (p[i, j+1] + p[i, j-1]) * dy^2 - rhs[i, j] * dy^2 * dz^2) / (2 * (dy^2 + dz^2))
+        
         p_old = p.copy()
 
         # enforce Neumann in z before update
-        p[:, 0]  = p[:, 1]
-        p[:, -1] = p[:, -2]
+        p_old[:, 0]  = p_old[:, 1]
+        p_old[:, -1] = p_old[:, -2]
 
-        # Jacobi update: periodic y via roll, z via indexing
         p_y_plus  = np.roll(p_old, -1, axis=0)
         p_y_minus = np.roll(p_old,  1, axis=0)
 
-        # z neighbors with Neumann reflection
-        p_z_plus = np.zeros_like(p)
-        p_z_minus = np.zeros_like(p)
+        p_z_plus  = np.empty_like(p_old)
+        p_z_minus = np.empty_like(p_old)
         p_z_plus[:, :-1] = p_old[:, 1:]
         p_z_plus[:, -1]  = p_old[:, -2]
         p_z_minus[:, 1:] = p_old[:, :-1]
         p_z_minus[:, 0]  = p_old[:, 1]
 
-        # discrete Lapacian
         p = ((p_y_plus + p_y_minus) * dz**2 +
              (p_z_plus + p_z_minus) * dy**2 -
              rhs * dy**2 * dz**2) / (2*(dy**2 + dz**2))
 
-        # Neumann in z + gauge fix
+        # Neumann + gauge
         p[:, 0]  = p[:, 1]
         p[:, -1] = p[:, -2]
         p -= p.mean()
 
-        if np.max(np.abs(p - p_old)) < tol:
+        # relative residual
+        rel_res = np.max(np.abs(laplacian(p) - rhs)) / rhs_scale
+        if rel_res < tol_rel:
+            print(f"[Poisson] converged: iters={_}, rel_res={rel_res:.2e}")
             break
 
     return p
@@ -256,58 +312,65 @@ def projection_step(v_star, w_star, p):
     return v_new, w_new
 
 # ============================================================
-# BOUNDARY CONDITIONS
+# SIMULATION
 # ============================================================
 
-def apply_velocity_bc(v, w):
+def incompressible_flow_simulation(nt, v, w, p):
+    for n in range(nt):
 
-    # walls in z: w = 0
-    w[:, 0] = 0.0   # w[i, 0] = 0.0
-    w[:, -1] = 0.0  # w[i, Nz-1] = 0.0
+        # predictor step: compute intermediate velocity u* by solving the momentum equation without the pressure term
+        v_star, w_star = predictor_step(v, w)
 
-    # free-slip for v at walls (∂v/∂n = 0)
-    v[:, 0] = v[:, 1]   # v[i, 0] = v[i, 1]
-    v[:, -1] = v[:, -2] # v[i, Nz-1
+        # compute the right-hand side of the Poisson equation for pressure correction
+        rhs = (rho / dt) * divergence(v_star, w_star)
 
-    return v, w
+        # solve the Poisson equation for pressure
+        p = pressure_poisson(p, rhs)
 
-# ============================================================
-# TIME LOOP
-# ============================================================
+        # projection step: correct the intermediate velocity u* with the pressure gradient to get the divergence-free velocity at the new time step
+        v, w = projection_step(v_star, w_star, p)
 
-for n in range(nt):
+        # apply boundary conditions to the velocity field
+        v, w = apply_velocity_bc(v, w)
 
-    # predictor step: compute intermediate velocity u* by solving the momentum equation without the pressure term
-    v_star, w_star = predictor_step(v, w)
+        # monitor the maximum divergence to check if the velocity field is approximately divergence-free after the projection step
+        if n % 10 == 0:
+            div_norm = np.max(np.abs(divergence(v, w)))
+            print(f"Step {n:4d} | max divergence = {div_norm:.3e}")
 
-    # compute the right-hand side of the Poisson equation for pressure correction
-    rhs = (rho / dt) * divergence(v_star, w_star)
-
-    # solve the Poisson equation for pressure
-    p = pressure_poisson(p, rhs)
-
-    # projection step: correct the intermediate velocity u* with the pressure gradient to get the divergence-free velocity at the new time step
-    v, w = projection_step(v_star, w_star, p)
-
-    # apply boundary conditions to the velocity field
-    v, w = apply_velocity_bc(v, w)
-
-    # monitor the maximum divergence to check if the velocity field is approximately divergence-free after the projection step
-    if n % 10 == 0:
-        div_norm = np.max(np.abs(divergence(v, w)))
-        print(f"Step {n:4d} | max divergence = {div_norm:.3e}")
+    return v, w, p
 
 # ============================================================
 # PLOTTING
 # ============================================================
 
-speed = np.sqrt(v**2 + w**2)
+def plot_velocity_field(y, z, v, w):
+    speed = np.sqrt(v**2 + w**2)
+    plt.figure(figsize=(6,5))
+    plt.contourf(y, z, speed.T, levels=20)
+    plt.colorbar(label="|u|")
+    plt.quiver(y, z, v.T, w.T, color="white", scale=30)
+    plt.xlabel("y")
+    plt.ylabel("z")
+    plt.title("Velocity Magnitude + Vector Field")
+    plt.show()
 
-plt.figure(figsize=(6,5))
-plt.contourf(y, z, speed.T, levels=20)
-plt.colorbar(label="|u|")
-plt.quiver(y, z, v.T, w.T, color="white", scale=30)
-plt.xlabel("y")
-plt.ylabel("z")
-plt.title("Velocity Magnitude + Vector Field")
-plt.show()
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+    y, z, Y, Z = create_grid()
+    v, w, p = initial_conditions(Y, Z)
+
+    print("Initial max divergence:", np.max(np.abs(divergence(v, w))))
+
+    v, w, p = incompressible_flow_simulation(nt, v, w, p)
+
+    print("Final max divergence:", np.max(np.abs(divergence(v, w))))
+
+    plot_velocity_field(y, z, v, w)
+
+
+if __name__ == "__main__":
+    main()

@@ -433,10 +433,10 @@ INPUT ./Chapter/Methods.tex
 INPUT /usr/share/texmf/fonts/tfm/public/lm/ec-lmri12.tfm
 INPUT /usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc
 INPUT /usr/share/texmf/fonts/tfm/public/lm/ec-lmr8.tfm
-INPUT /usr/share/texmf/fonts/tfm/public/lm/ec-lmr6.tfm
-INPUT /usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc
 INPUT /usr/share/texmf/fonts/tfm/public/lm/ec-lmbx8.tfm
+INPUT /usr/share/texmf/fonts/tfm/public/lm/ec-lmr6.tfm
 INPUT /usr/share/texmf/fonts/tfm/public/lm/ec-lmbx6.tfm
+INPUT /usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc
 INPUT ./Chapter/Results.tex
 INPUT ./Chapter/Results.tex
 INPUT ./Chapter/Results.tex

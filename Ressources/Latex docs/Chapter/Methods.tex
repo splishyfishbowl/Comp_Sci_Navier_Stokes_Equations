@@ -16,10 +16,10 @@ For instance, consider the basic Navier-Stokes equation
 $$\partial _t T  = \Delta T - \bm u \nabla T$$.
 Here, we could set $A:= \Delta, B:= - \bm u \nabla$ and obtain:
 $$\partial _t T  = (A - B) T$$
-$A$ expresses the \todo{what does it express?}, $B$ represents advection \todo{clarify, whether we really have this problem?}.
+$A$ expresses the Laplace operator as a second derivative, $B$ represents advection.
 
-Usually, numerical methods have to be applied to solve such a problem of partial differential equations.
-As these are often computationally expensive \textit{operator splitting} provides a procedure to reduce costs for the solution of the PDE.
+Hence analytical solutions usually dont exist, numerical methods have to be applied to solve such a problem of partial differential equations.
+As these are often computationally expensive, \textit{operator splitting} provides a procedure to reduce costs for the solution of the PDE by accepting a controlled error.
 We "split" the problem into subproblems, meaning that we consider each operator individually:
 \begin{align}
 \partial_t \bm{u} &= A \bm{u} \\
@@ -47,24 +47,26 @@ Note, that we derived two \textbf{linear} problems after we applied operator spl
 
 That is why we can find simple solutions to the formulated splitted operator problems, namely  
 \begin{align}
-    u_A(t) &= e^{(t-t_0) A}u_0 \\
-    u_B(t) &= e^{(t-t_0)  B}u_0 
+    \textbf u_A(t) &= e^{(t-t_0) A}\textbf u_0 \\
+    \textbf u_B(t) &= e^{(t-t_0)  B}\textbf u_0 
 \end{align}
-In our case we only want to solve for the next discrete time interval $[t_k, t_{k+1}]=[t_k, t_k + \Delta t]$ – not the whole time interval.
-That is why we modify the solutions for the first order operator splitting and rewrite them to
+In our case we only want to solve for the next discrete time interval $[t_k, t_{k+1}]=[t_k, t_k + \Delta t]$.
+We do not solve continously for the whole time interval.
+That is why we modify the solutions for the first order operator splitting and rewrite them accordingly to
 
 \begin{align}
-    u_{k+1, A} &= e^{(t_{k+1} - t_k) A}u_{k, A} \\
-    u_{k+1, B} &= e^{(t_{k+1} - t_k) B}u_{k, B} 
-\end{align}.
-With $\Delta t = t_{k+1}-t_k$ we finally get the solution for each operator with respect to the discetized time step $\Delta t$:
+    \textbf u_{k+1, A} &= e^{(t_{k+1} - t_k) A}\textbf u_{k, A} \\
+    \textbf u_{k+1, B} &= e^{(t_{k+1} - t_k) B}\textbf u_{k, B} 
+\end{align}
+With $\Delta t = t_{k+1}-t_k$ we finally get the solution for each operator with respect to the discetized time step $\Delta t$ (Note that we assume equidistant discretization in time):
 
 \begin{align}
-    u_{k+1, A} &= e^{\Delta t A}u_{k, A} \\
-    u_{k+1, B} &= e^{\Delta t B}u_{k, B} 
+    \textbf u_{k+1, A} &= e^{\Delta t A}\textbf u_{k, A} \\
+    \textbf u_{k+1, B} &= e^{\Delta t B}\textbf u_{k, B} 
 \end{align}.
 
-For first-order operator splitting the following algorithm is applied to the abstract problem $\partial_t \bm{u}= (A+B)\bm{u}$ is split as shown into the two seperate operator problems:
+For first-order operator splitting the following algorithm is applied to the abstract problem $\partial_t \bm{u}= (A+B)\bm{u}$.
+The equation is split as shown into the two seperate operator problems:
 \begin{enumerate}
     \item{Set $\bm{u}_{k,A}:= \bm{u}_k$}
     \item{Solve $\bm{u}_{k+1, A} = e^{\Delta t A}\bm u_{k, A}$ on the next interval $[t_{k}, t_k+\Delta t]$}. 
@@ -86,11 +88,12 @@ Nevertheless, the GTE error is of order $\mathcal{O}(\Delta t)$ (\todo{include s
 \subsubsection{Second order operator splitting (Strang-splitting)}
 To reduce the GTE of the operator splitting scheme to an error of order $\mathcal{O}(\Delta t^2)$ the following can be applied to approximate the solution $\bm{u}_{k+1}$ at the next timestep $t_{k+1}=t_k +\Delta t$:
 \begin{equation}
-    \bm{u}_{k+1}=e^{\frac{\Delta t A}{2}}\cdot e^{{\Delta t B}}\cdot e^{\frac{\Delta t A}{2}} \bm{u}_k
+    \bm{u}_{k+1}=e^{\frac{\Delta t}{2}A}\cdot e^{{\Delta t B}}\cdot e^{\frac{\Delta t}{2}A} \bm{u}_k
 \end{equation}
 
 \subsection{Application of operator splitting on the Velocity equation \todo{is it really the name?}}
-We now apply operator splitting in the context of the velocity equation
+We have seen operator splitting for a rather general problem. 
+We now apply operator splitting in the context of the velocity equation from the Navier-Stokes equation
 $$ \partial_t \bm{u} + \bm{u} \cdot \nabla \bm u + \frac{1}{\rho}\nabla p = \nu \Delta \bm{u} + \beta T\bm{e}_z $$
 and obtain three different operators:
 \begin{enumerate}
@@ -100,6 +103,8 @@ and obtain three different operators:
     
 \end{enumerate}
 
+To approach this problem of increased complexity we divide the steps to compute a numerical solution for the velocity.
+Each step assumes different simplifications and approximations to ensure all the demanded properties for a solution of the vector field of velocity.
 \begin{enumerate}
     \item{\textbf{Step 1:} \\ Ignore Incompressibility: $\partial_t \bm{u}+\bm{u} \cdot \nabla \bm{u} = \nu \cdot \Delta \bm{u} + f$}. Here, we obtain the intermediate velocity $\bm u^* \Rightarrow \nabla \cdot \bm u \neq 0$
     \item{\textbf{Step 2:} \\ We now use this intermediate velocity to respect incompressibility and include pressure: $$ \bm{u}^{k+1} = \bm{u}^*-\nabla \bm{p}$$ We use the \textit{Helmholtz decomposition} to do this: $$\bm{u}^* = \bm{u}^\perp + \nabla \phi $$ It follows immediately, that $\bm{u}^{k+1}= \bm{u}^\perp$. We want $$\nabla \bm{u}_{k+1}=0 \Rightarrow  \nabla (\bm u^*-\nabla \bm p)=0 \Rightarrow \nabla (\bm u ^* - \nabla \bm p) = 0 \Rightarrow \nabla \bm u^* = \Delta p$$ as this gives us the Poisson equation for pressure.}

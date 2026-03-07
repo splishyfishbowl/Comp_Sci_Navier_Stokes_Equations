@@ -1,31 +1,9 @@
 \begin{thebibliography}{}
 
-\bibitem [\protect \citeauthoryear {%
-Clymo%
-}{%
-Clymo%
-}{%
-{\protect \APACyear {1970}}%
-}]{%
-clymo_growth_1970}
-\APACinsertmetastar {%
-clymo_growth_1970}%
-\begin{APACrefauthors}%
-Clymo, R\BPBI S.%
-\end{APACrefauthors}%
-\unskip\
-\newblock
-\APACrefYearMonthDay{1970}{}{}.
-\newblock
-{\BBOQ}\APACrefatitle {The {Growth} of {Sphagnum}: {Methods} of {Measurement}} {The {Growth} of {Sphagnum}: {Methods} of {Measurement}}.{\BBCQ}
-\newblock
-\APACjournalVolNumPages{Journal of Ecology}{58}{1}{13--49}.
-\newblock
-\begin{APACrefURL} [{2025-06-13}]\url{https://www.jstor.org/stable/2258168} \end{APACrefURL}
-\newblock
-\APACrefnote{Publisher: [Wiley, British Ecological Society]}
-\newblock
-\begin{APACrefDOI} \doi{10.2307/2258168} \end{APACrefDOI}
-\PrintBackRefs{\CurrentBib}
+\bibitem[Clymo, 1970]{clymo_growth_1970}
+Clymo, R.~S. (1970).
+\newblock The {Growth} of {Sphagnum}: {Methods} of {Measurement}.
+\newblock {\em Journal of Ecology}, 58(1):13--49.
+\newblock Publisher: [Wiley, British Ecological Society].
 
 \end{thebibliography}

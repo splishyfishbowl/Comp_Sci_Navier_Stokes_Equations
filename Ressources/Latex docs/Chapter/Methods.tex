@@ -275,9 +275,119 @@ $$ \Delta t \leq \min{\left(\frac{\Delta y}{\max|a_y|}, \frac{\Delta z}{\max|a_z
 
 Summarized, we successfully implemented operator splitting and upwind finite differende method for the linear advection term and ensured stability all over our domain.
 \todo{boundary conditions implementation}
-\section{Second task}
+\newpage
+
+\section{Incompressible flow – Chorins projection method}\label{Chorins}
+
+We consider the Navier-Stokes equations for velocity 
+\begin{align}
+    \partial_t \textbf{u} + \textbf{u} \cdot \nabla \textbf{u} + \frac{1}{\rho}\nabla p &= \nu \Delta \textbf{u}  \quad \quad \text{with } \beta = 0 \\
+    \nabla \cdot \textbf u &= 0  
+\end{align}
+
+Here, we implement the boundary condition
+\begin{align}
+\textbf u (t,0,z) &= \textbf u (t,1,z)\\
+\textbf w (t,y,0) &= \textbf w (t,y,1)=0 \quad \quad \forall t \in [0, t_{end}], (y,z)\in \Omega
+\end{align}
+
+In order to solve this differential equation we use a projection method. \todo{explain why we use a projection method}.
+As demanded by the project task we implement Chorins projection method.
+Conceptually, this approach can be split into two steps:
+\begin{enumerate}
+    \item{We calculate an intermediate velocity that does not satisfy the incompressibility constraint ($ \nabla \cdot \textbf u = 0$). 
+    This intermediate velocity is computed at each time step (ignoring the pressure term)}
+    \item{Subsequently, the pressure $p$ is used to \textit{project} the intermediate velocity onto a space of divergent free velocity field.}
+\end{enumerate}
+
+Formally, we perform
+
+\begin{enumerate}
+    \item{$$\frac{\textbf u^*-\textbf u^n}{\Delta t} = - (\textbf u^n \cdot \nabla)\textbf u^n + \nu \nabla^2 \textbf u^n $$}
+    \item{$$\frac{\textbf u^{n+1}-\textbf u^*}{\Delta t} = - \frac{1}{\rho} \nabla p^{n+1}$$} 
+\end{enumerate}
+Two things are especially noteworthy about this procedure. Firstly, the pressure $p$ is time-invariant. That menas, that the pressure $p$ is unaffected by our timestep $\Delta t$.
+Secondly, we can summarize that this procedure is a kind of operator splitting.
 
 
+But we are not finished here. In our first step of the described scheme we obtain the intermediate velocity $\textbf u^*$. 
+However, this velocity vector is not complying with our constraint of zero divergence. 
+Additionally, the solution of the second equation of this scheme requires knowledge about $p$. 
+That is why we rewrite the second equation:
+$$\textbf u^{n+1}=\textbf u^* - \frac{\Delta t}{\rho}\nabla p^{n+1}$$
 
+Ensuring the absence of divergence $(\nabla \textbf u^{n+1}=0)$ allows us to further extend this equation:
+\begin{align}
+\textbf u^{n+1} & =\textbf u^* - \frac{\Delta t}{\rho}\nabla p^{n+1} \\
+\text{respecting divergence} \quad 0 &= \nabla \textbf u^* - \frac{\Delta t}{\rho}\nabla^2 p^{n+1} \\
+\Rightarrow \Delta p^{n+1}&= \frac{\rho}{\Delta t}(\nabla \textbf u^*)
+\end{align}
+The last result refelcts the Poisson equation for pressure.
+
+We can see that the method is called a 'projection' because we decompose $\textbf u^*$ into a divergence-free (solenoidal) part $\textbf u_{sol}$ and irraotational part $\textbf u_{\text{irrot}}$.
+Then with the projection step $\textbf u_{irrot}=\nabla \phi$ is removed so that the remaining part is negative divergence-free.
+
+$$\textbf u = \textbf u_{\text{sol}}+\textbf u_{\text{irrot}}= \textbf u_{\text{sol}}+\nabla \phi $$
+
+Since $\nabla \textbf u_{\text{sol}}=0$ the whole expression simplifies when we calculate the divergence of the total expression:
+$$\Delta \textbf u = \Delta \phi $$
+
+Here, $\Delta = \nabla^2$ represents the Laplacian operator.
+Consequently, the solenoidal part can be calculated as $\textbf u_{\text{sol}}=\textbf u - \nabla \phi$.
+
+This kind of projection method is called Helmholtz-Hodge decomposition.
+
+We once again consider the Poisson equation we want to solve:
+$$\Delta p = \frac{\rho}{\Delta t}(\nabla \textbf u ^*) \quad \text{in the domain } \Omega =[0,1]^2$$
+
+If we assume Neumann boundary conditions it leads to 
+$$\frac{\partial p}{\partial \textbf n}=0 \Leftrightarrow \nabla p \cdot \textbf n = 0 \quad \text{on }\partial \Omega$$
+
+With this boundary condition we get a solution that is not unique as $p$ is defined up to an additive constant.
+To solve the Poisson equation we equidistantly discretize the spatial domain.
+$$y_i = i \Delta y \quad i=0,...,N_{y}-1$$
+$$ z_j = j \Delta z \quad j=0,...,N_z -1$$
+
+To approximate the second derivatives (Laplace operator) we implement the second finite difference in two dimensions:
+$$\Delta p = \nabla^2 p = \frac{\partial ^2 p}{\partial y^2}+\frac{\partial^2 p}{\partial z^2} \approx \frac{p_{i+1,j}-2p_{i,j}+p_{i-1,j}}{\Delta y^2}+ \frac{p_{i,j+1}-2p_{i,j}+p_{i,j-1}}{\Delta z^2}$$
+
+\subsection{Discretized Poisson equation}
+We now plug the discretized Laplace operator into our Poisson equation.
+Remember that the Poisson we want to solve was
+$$ \Delta p^{n+1}= \frac{rho}{\Delta t}(\nabla \textbf u^*) $$
+Thus, plugging in the numerical approximations and rearranging yields:
+$$-2(\frac{1}{\Delta y^2}+\frac{1}{\Delta z^2})p_{i,j}+\frac{p_{i+1,j}+p_{i-1,j}}{\Delta y^2}+\frac{p_{i,j+1}+p_{i,j-1}}{\Delta z^2}=\frac{\rho}{\Delta t}(\nabla \textbf u^*)_{i,j}$$
+
+We also have to ensure, that our numerical solution respects the boundary conditions. 
+We will use a central finite difference approach for this. 
+The central finite difference can generally be written as
+$$ f'_i \approx \frac{f_{i+1}-f_{i-1}}{2 \Delta x} $$
+Each boundary of our domain then corresponds to another numerical condition to be met which can be seen in table \ref{tab:boundaryconditions}. 
+
+\begin{table}\label{tab:boundaryconditions}
+\begin{center}
+\begin{tabular}{l c c c}
+    \hline
+    \textbf{Boundary} & \textbf{BC} & \textbf{numerical BC} & \textbf{Resulting condition}\\
+    \hline
+    \hline 
+    $\text{Bottom} (z=0,j=0)$ & $\frac{\partial p}{\partial z}=0$ & $\frac{p_{i,1}-p_{i,-1}}{2\Delta z}=0$ & $p_{i,1}=p_{i,-1}$ \\
+    $\text{Top} (z=1,j=N_z-1) $& $\frac{\partial p}{\partial z}=0$ & $\frac{p_{i,N_z}-p_{i,-2}}{2\Delta z}=0$ & $p_{i,N_z}=p_{i,N_z-2}$ \\
+    $\text{Left} (y=0,i=0)$ & $\frac{\partial p}{\partial y}=0$ & $\frac{p_{1,j}-p_{-1,j}}{2\Delta z}=0$ & $p_{1,j}=p_{-1,j}$ \\
+    $\text{Right} (y=1,i=N_y-1) $ & $\frac{\partial p}{\partial y}=0$ & $\frac{p_{N_y,j}-p_{N_y-2,j}}{2\Delta z}=0$ & $p_{N_y,j}=p_{N_y-2,j}$ \\
+\end{tabular}
+\caption{\textbf{Dsicretized Boundary Conditions (BC)} Boundary conditions for all of the four boundaries of the twodimensional domain $\Omega = [0,1]^2$. Each row represents one boundary and shows the continous and numerical representation of the boundary conditions given in the task. Numerical approximation was performed by using a central finite difference approach.}
+\end{center}
+\end{table}
+
+\subsection{Numerical procedure}
+Summarising, we obtain the following numerical procedure:
+\begin{enumerate}
+    
+    \item{Solve $\frac{\textbf u^*-\textbf u^n}{\Delta t} = -(\textbf u^n\cdot \nabla)\cdot \textbf u^n + \nu \Delta \textbf n^n$} with a suitable integrator scheme 
+    \item{Obtain $p$ by solving the discretized Poisson equation}
+    \item{Solve $\frac{\textbf u^{n+1}-\textbf u^*}{\Delta t}=-\frac{1}{\rho}\nabla p$ and obtain $\textbf u^{n+1}$}
+    
+\end{enumerate}
 \section{Further tasks}
 

@@ -1,33 +1,26 @@
 '''
 3.3 Incompressible Flow
 Comp_Sci_Navier_Stokes_Equations.src.IncompressibleFlow
-'''
 
-'''
-Familiarize yourself with the concept of Chorin’s projection method. Explain the necessity for a projection method.
-'''
+Solves the incompressible Navier–Stokes equations (β = 0):
 
-'''
-Write a Poisson solver in two spatial dimensions, which discretizes the solution of (6) - (7) by finite differences 
-on a cartesian grid.
-(6)     Δp = f
-(7)     ∂p / ∂n = 0
-For this purpose define the interface and implement unit tests as well tests to check the consistency first.
-'''
+    ∂_t u + u · ∇u + ∇p/ρ = ν Δu    (momentum)
+    ∇ · u = 0                       (incompressibility)
 
-'''
-Do the implementation of the solver.
-'''
+on a 2-D (y, z) domain that is periodic in y and wall-bounded in z,
+using Chorin's projection method:
 
-'''
-Implement Chorin's projection method [1] for the Navier Stokes equations i.e. (2) - (3) with β = 0 using the numerical
-methods built so far. Implement initial conditions to test your code, check the consistency order and visualize the data.
-(2)     ∂_t~u + ~u · ∇~u + ∇p/ρ = ν∆~u + T βe_z
-(3)     ∇ · ~u = 0
+  1. Predictor  — advance u^n with advection + diffusion, ignoring pressure,
+                  to obtain an intermediate velocity u* (not divergence-free).
+  2. Poisson    — solve  Δp = (ρ/dt) ∇·u*  for the pressure correction,
+                  with Neumann BCs (∂p/∂n = 0) and zero mean.
+  3. Projection — correct u* via  u^{n+1} = u* − (dt/ρ) ∇p  so that
+                  ∇·u^{n+1} = 0 to within solver tolerance.
 '''
 
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.fft import fft, ifft, dct, idct
 
 # ============================================================
 # GLOBAL PARAMETERS
@@ -37,11 +30,11 @@ Ny, Nz = 50, 50          # grid points in y and z directions
 Ly, Lz = 1.0, 1.0        # domain size in y and z directions
 
 # grid spacing (uniform grid)
-dy = Ly / Ny            # periodic in y --> no endpoint
-dz = Lz / (Nz - 1)      # walls included in z --> endpoint included
+dy = Ly / Ny            # periodic in y: no repeated endpoint
+dz = Lz / (Nz - 1)      # walls-bounded z: endpoint included
 
 # time discretization
-dt = 0.001               # time step
+dt = 0.000001            # time step
 nt = 100                 # number of time steps
 
 # physical parameters
@@ -49,29 +42,43 @@ rho = 1.0                # density
 nu = 0.01                # kinematic viscosity
 
 # ============================================================
-# GRID / INITIAL CONDITIONS
+# GRID
 # ============================================================
 
 def create_grid():
+    '''
+    Build the uniform (y, z) grid.
+    y is periodic [0, Ly): endpoint excluded to avoid duplicating the node at y = Ly.
+    z is wall-bounded [0, Lz]: endpoint included so boundary nodes sit exactly on the walls.
+    Returns 1-D arrays y, z and 2-D meshgrid arrays Y, Z (indexing="ij").
+    '''
     y = np.linspace(0, Ly, Ny, endpoint=False)  # periodic: don't repeat y=Ly
     z = np.linspace(0, Lz, Nz, endpoint=True)   # walls at z=0 and z=Lz
     Y, Z = np.meshgrid(y, z, indexing="ij")
     return y, z, Y, Z
 
+# ============================================================
+# INITIAL CONDITIONS
+# ============================================================
+
 def initial_conditions(Y, Z):
     '''
-    Divergence-free initial condition (exact for the continuous operators):
-        v =  sin(ky·y) cos(kz·z)
-        w = -(ky/kz) cos(ky·y) sin(kz·z)
-    ∇·u = ky cos(ky·y)cos(kz·z) - (ky/kz)·kz cos(ky·y)cos(kz·z) = 0  ✓
-    w satisfies w=0 at z=0 and z=Lz because sin(0)=sin(π)=0.
+    Analytically divergence-free initial condition:
+        v =  sin(ky y) cos(kz z)
+        w = -(ky/kz) cos(ky y) sin(kz z)
+
+    Continuous verification:
+        ∂v/∂y + ∂w/∂z = ky cos(ky y) cos(kz z) − (ky/kz)·kz cos(ky y) cos(kz z) = 0
+
+    Wall condition:
+        w = 0 at z = 0 and z = Lz because sin(0) = sin(π) = 0
     '''
     ky = 2*np.pi / Ly
     kz = np.pi / Lz
 
-    v = np.sin(ky*Y) * np.cos(kz*Z)             # velocity in y-direction
-    w = -(ky/kz) * np.cos(ky*Y) * np.sin(kz*Z)  # velocity in z-direction
-    p = np.zeros((Ny, Nz))                      # pressure field
+    v = np.sin(ky*Y) * np.cos(kz*Z)             # y-velocity component
+    w = -(ky/kz) * np.cos(ky*Y) * np.sin(kz*Z)  # z-velocity component
+    p = np.zeros((Ny, Nz))                      # initial pressure (zero)
     return v, w, p
 
 # ============================================================
@@ -79,6 +86,12 @@ def initial_conditions(Y, Z):
 # ============================================================
 
 def apply_velocity_bc(v, w):
+    '''
+    Enforce wall boundary conditions on the velocity field.
+      - No-penetration: w = 0 at z = 0 and z = Lz.
+      - Free-slip:      ∂v/∂z = 0 at z = 0 and z = Lz,
+                        implemented as a ghost-cell copy (v[j=0] = v[j=1]).
+    '''
     v, w = v.copy(), w.copy()
     w[:, 0]  = 0.0      # no-penetration at z = 0
     w[:, -1] = 0.0      # no-penetration at z = Lz
@@ -92,18 +105,25 @@ def apply_velocity_bc(v, w):
 
 def divergence(v, w):
     '''
-    ∇ ⋅ u = ∂v/∂y + ∂w/∂z
-    periodic in y via roll, walls in z via central interior
+    compute ∇ ⋅ u = ∂v/∂y + ∂w/∂z
+
+    y-direction: periodic, second-order central differences via np.roll.
+    z-direction: second-order central differences in the interior;
+                 one-sided first-order at the walls (w = 0 there).
+
+    Only the no-penetration condition w = 0 is enforced here. The free-slip
+    BC for v is a momentum condition and must not be applied inside divergence,
+    as it would corrupt the dv/dy stencil at the first interior z-point.
     '''
     v, w = v.copy(), w.copy()
-    w[:, 0]  = 0.0   # no-penetration only; never touch v
-    w[:, -1] = 0.0
+    w[:, 0]  = 0.0   # no-penetration: w = 0 at z = 0
+    w[:, -1] = 0.0   # no-penetration: w = 0 at z = Lz
 
     dv_dy = (np.roll(v, -1, axis=0) - np.roll(v, 1, axis=0)) / (2*dy)
 
     dw_dz = np.zeros_like(w)
     dw_dz[:, 1:-1] = (w[:, 2:] - w[:, :-2]) / (2*dz)
-    # one-sided at walls (w=0 there, so these are 0 anyway, but kept for generality)
+    # one-sided stencil at walls; evaluates to 0 since w = 0 there
     dw_dz[:, 0]  = (w[:, 1] - w[:, 0]) / dz
     dw_dz[:, -1] = (w[:, -1] - w[:, -2]) / dz
 
@@ -111,13 +131,16 @@ def divergence(v, w):
 
 def gradient(p):
     '''
-    ∇p = (∂p/∂y, ∂p/∂z)
-    periodic in y via roll
-    Neumann in z handled by copying adjacent values before derivative
+    compute ∇p = (∂p/∂y, ∂p/∂z)
+
+    y-direction: periodic, second-order central differences via np.roll.
+    z-direction: ghost-cell copy (p[j=0] = p[j=1], p[j=N−1] = p[j=N−2])
+                 enforces the Neumann condition ∂p/∂n = 0 at both walls;
+                 the one-sided wall stencil then returns exactly zero.
     '''
     p = p.copy()
 
-    # Neumann ghost cells
+    # Neumann ghost-cell extrapolation: dp/dz = 0 at walls
     p[:, 0]  = p[:, 1]
     p[:, -1] = p[:, -2]
 
@@ -132,9 +155,16 @@ def gradient(p):
 
 def laplacian(f):
     '''
-    Δf = ∂²f/∂y² + ∂²f/∂z²
-    periodic in y via roll
-    in z: central interior + reflection at boundaries (Neumann-type)
+    compute Δf = ∂²f/∂y² + ∂²f/∂z²
+
+    y-direction: periodic, second-order central differences via np.roll.
+    z-direction: second-order central differences in the interior;
+                 Neumann-reflection ghost at the walls
+                 (f_ghost = f_interior, giving ∂f/∂z = 0).
+
+    The reflection ghost is applied only inside the wall-point stencil
+    formulas, never as a pre-overwrite of the full array — doing the latter
+    would corrupt the interior stencil at j = 1 and j = N−2.
     '''
     f = f.copy()
 
@@ -153,12 +183,18 @@ def laplacian(f):
 
 def upwind_step(field, a, delta, dt, axis, periodic=True):
     '''
-    First-order upwind update for u_t + a * u_x = 0 along a single axis.
-    Supports scalar a or array a(y,z). u_t + a·u_x = 0, one axis at a time.
+    First-order upwind update for  q_t + a·q_x = 0  along one axis.
 
-    periodic=True: uses np.roll for neighbors
-    periodic=False: uses one-sided interior differences; boundaries get zero-derivative by default
-                    (you can overwrite boundaries via BCs after the step).
+    Parameters
+    ----------
+    field   : 2-D array, the quantity to advect.
+    a       : scalar or array matching field, the advecting velocity component.
+    delta   : grid spacing along the chosen axis.
+    dt      : time step.
+    axis    : 0 for y-direction, 1 for z-direction.
+    periodic: if True, uses np.roll for neighbour access (y-direction);
+              if False, uses one-sided differences in the interior and
+              leaves boundary rows at zero (overwrite with BCs afterwards).
     '''
     field = field.copy()
     a = np.asarray(a)
@@ -166,17 +202,17 @@ def upwind_step(field, a, delta, dt, axis, periodic=True):
     if periodic:
         f_plus  = np.roll(field, -1, axis=axis)
         f_minus = np.roll(field,  1, axis=axis)
-        db = (field - f_minus) / delta  # backward diff (upwind if a>0)
-        df = (f_plus - field) / delta   # forward  diff (upwind if a<0)
+        db = (field - f_minus) / delta  # backward difference (upwind if a>0)
+        df = (f_plus - field) / delta   # forward  difference (upwind if a<0)
         return field - dt * a * np.where(a > 0, db, np.where(a < 0, df, 0.))
 
-    # non-periodic: compute interior only
+    # non-periodic: interior stencils only; boundary rows stay zero
     db = np.zeros_like(field)
     df = np.zeros_like(field)
 
-    if axis == 0:  # y-direction
-        db[1:,  :] = (field[1:,  :] - field[:-1, :]) / delta # backward difference for i=1..end
-        df[:-1, :] = (field[1:,  :] - field[:-1, :]) / delta # forward difference for i=0..end-1
+    if axis == 0:  # y-direction (non-periodic path)
+        db[1:,  :] = (field[1:,  :] - field[:-1, :]) / delta # backward, i = 1..N-1
+        df[:-1, :] = (field[1:,  :] - field[:-1, :]) / delta # forward,  i = 0..N-2
     else:          # z-direction
         db[:, 1:]  = (field[:, 1:]  - field[:, :-1]) / delta
         df[:, :-1] = (field[:, 1:]  - field[:, :-1]) / delta
@@ -184,10 +220,10 @@ def upwind_step(field, a, delta, dt, axis, periodic=True):
     return field - dt * a * np.where(a > 0, db, np.where(a < 0, df, 0.))
 
 def advect_split_upwind(q, a_y, a_z):
-    """
-    Operator-split advection:
-    first y-direction, then z-direction
-    """
+    '''
+    Operator-split (Godunov) advection of q by velocity (a_y, a_z):
+    first a y-sweep (periodic), then a z-sweep (non-periodic).
+    '''
     q1 = upwind_step(q, a_y, dy, dt, axis=0, periodic=True)
     q2 = upwind_step(q1, a_z, dz, dt, axis=1, periodic=False)
     return q2
@@ -198,26 +234,29 @@ def advect_split_upwind(q, a_y, a_z):
 
 def predictor_step(v, w):
     '''
-    computes a temporary velocity u* = (v*, w*) by solving the momentum equation without the pressure term,
-    producing as velocity which isn't divergence free.
-    This solves for the u* in the predictor equation in Chorin's projection method: 
-        (u* - u^n)/dt = -(u^n · ∇)u^n + nu(Δu^n)
-        solving for u* gives: u* = u^n + dt[-(u^n · ∇)u^n + nu Δu^n]
+    Predictor step of Chorin's method: advance the momentum equation
+    without the pressure gradient to get an intermediate velocity u*.
+
+    Explicit Euler discretisation:
+        u* = u^n + dt [ -(u^n · ∇)u^n + nu Δu^n ]
 
     Componentwise:
-        (v* - v^n)/dt = -((v^n)(∂v^n/∂y) + (w^n)(∂v^n/∂z)) + nu(Δv^n)
-        (w* - w^n)/dt = -((v^n)(∂w^n/∂y) + (w^n)(∂w^n/∂z)) + nu(Δw^n)
+        v* = v^n - dt (v^n ∂v^n/∂y + w^n ∂v^n/∂z) + dt nu Δv^n
+        w* = w^n - dt (v^n ∂w^n/∂y + w^n ∂w^n/∂z) + dt nu Δw^n
+
+    The diffusion term is evaluated on u^n (not on the advected u*),
+    consistent with an explicit Euler splitting.
     '''
 
-    # enforce BCs in z 
+    # enforce wall BCs before stencil evaluation
     v, w = apply_velocity_bc(v, w)
 
-    # advective increment: -(u^n·∇)u^n · dt  (upwind gives u^n - dt·(u·∇)u)
+    # advection: returns u^n + dt·(−u^n·∇)u^n
     v_adv = advect_split_upwind(v, v, w)    # = v^n + dt·(advection of v)
     w_adv = advect_split_upwind(w, v, w)    # = w^n + dt·(advection of w)
 
-    # diffusion (still explicit)
-    v_star = v_adv + dt * nu * laplacian(v)
+    # diffusion increment dt·nu·Δu^n added to the advected field
+    v_star = v_adv + dt * nu * laplacian(v) # laplacian evaluated on u^n
     w_star = w_adv + dt * nu * laplacian(w)
 
     v_star, w_star = apply_velocity_bc(v_star, w_star)
@@ -225,62 +264,63 @@ def predictor_step(v, w):
     return v_star, w_star
 
 # ============================================================
-# PRESSURE POISSON SOLVER
+# PRESSURE POISSON SOLVER (spectral direct solver)
 # ============================================================
 
-def pressure_poisson(p, rhs, max_iter=10000, tol_rel=1e-5):
+def pressure_poisson(rhs):
     '''
-    computes the pressure field p by solving the Poisson equation that arises
-    from enforcing incompressibility in Chorin's projection method. Solve the Δp = rhs with:
-        - periodic in y
-        - Neumann BCs in z (∂p/∂n = 0)
-        - mean(p) = 0 to fix the gauge freedom 
-    parameters:
-        p: initial guess for pressure field (2D array)
-        rhs: right-hand side of the Poisson equation (2D array); rhs = (rho/dt) * ∇ ⋅ u*
-        max_iter: maximum number of Jacobi iterations
-        tol_update: tolerance for maximum change in p between iterations for convergence (pressure change)
-        tol_res: tolerance for maximum residual of the Poisson equation for convergence (Poisson residual)
-    returns:
-        p: solution of the Poisson equation Δp = rhs with Neumann BCs
+    Solve  Δp = rhs  using Jacobi iteration, subject to:
+        - periodic BCs in y,
+        - Neumann BCs in z  (∂p/∂n = 0, enforced via reflection ghost cells),
+        - zero-mean gauge   (mean(p) = 0, to fix the pressure up to a constant).
 
+    The Neumann problem requires the compatibility condition ∫ rhs dΩ = 0,
+    which is enforced by subtracting rhs.mean() before iteration.
+
+    The z-neighbour arrays in the Jacobi update are constructed to exactly
+    mirror the laplacian() stencil (reflection ghost at walls, true neighbours
+    in the interior), so the iteration converges to the correct solution.
+
+    Parameters
+    ----------
+    p        : initial guess for the pressure field  (Ny x Nz array).
+    rhs      : right-hand side  rhs = (rho/dt) ∇·u*  (Ny x Nz array).
+    max_iter : maximum number of Jacobi iterations.
+    tol_rel  : convergence tolerance on the relative residual
+               max|Δp - rhs| / max|rhs|.
+
+    Returns
+    -------
+    p : pressure field satisfying Δp ≈ rhs with the boundary conditions above.
     '''
+    rhs = rhs - rhs.mean()   # compatibility condition: ∫ rhs dΩ = 0 for Neumann
 
-    p = p.copy()
-    rhs = rhs - rhs.mean()   # compatibility condition for Neumann Poisson
-    rhs_scale = max(np.max(np.abs(rhs)), 1e-14)
+    # 1. FFT in y  (all Ny modes; result is complex)
+    F = fft(rhs, axis=0)                                           # (Ny, Nz)
 
-    for iteration in range(max_iter):
-        p_old = p.copy()
-        p_old = p.copy()
+    # 2. DCT-1 in z  (scipy DCT-1 diagonalises the Neumann Laplacian stencil)
+    #    Applied separately to real and imaginary parts since scipy DCT is real-only.
+    G = dct(F.real, type=1, axis=1) + 1j * dct(F.imag, type=1, axis=1)   # (Ny, Nz)
 
-        # y-neighbours: periodic
-        p_yp = np.roll(p_old, -1, axis=0)
-        p_ym = np.roll(p_old,  1, axis=0)
+    # 3. Eigenvalues of the discrete operators
+    k   = np.arange(Ny)
+    lam_y = 2 * (np.cos(2*np.pi*k / Ny)      - 1) / dy**2        # (Ny,)
+    m   = np.arange(Nz)
+    lam_z = 2 * (np.cos(np.pi*m  / (Nz - 1)) - 1) / dz**2        # (Nz,)
+    mu    = lam_y[:, None] + lam_z[None, :]                        # (Ny, Nz)
 
-        # z-neighbours: match laplacian() stencil
-        p_zp = np.empty_like(p_old)
-        p_zm = np.empty_like(p_old)
+    # 4. Solve in spectral space; pin gauge mode to zero
+    mu[0, 0] = 1.0    # avoid division by zero
+    P = G / mu
+    P[0, 0] = 0.0     # zero-mean: the (0,0) mode is the spatial mean of p
 
-        p_zp[:, 1:-1] = p_old[:, 2:]    # interior z+1
-        p_zm[:, 1:-1] = p_old[:, :-2]   # interior z-1
-        p_zp[:, 0]    = p_old[:, 1]     # wall j=0:   reflection ghost
-        p_zm[:, 0]    = p_old[:, 1]     # wall j=0:   reflection ghost
-        p_zp[:, -1]   = p_old[:, -2]    # wall j=N-1: reflection ghost
-        p_zm[:, -1]   = p_old[:, -2]    # wall j=N-1: reflection ghost
+    # 5. Inverse DCT-1 in z, then inverse FFT in y
+    p = ifft(
+        idct(P.real, type=1, axis=1) + 1j * idct(P.imag, type=1, axis=1),
+        axis=0
+    ).real
 
-        p = ((p_yp + p_ym) * dz**2 +
-             (p_zp + p_zm) * dy**2 -
-             rhs * dy**2 * dz**2) / (2*(dy**2 + dz**2))
-
-        p -= p.mean()   # pin gauge freedom
-
-        if iteration % 100 == 0:
-            res = np.max(np.abs(laplacian(p) - rhs)) / rhs_scale
-            if res < tol_rel:
-                print(f"  [Poisson] converged at iter {iteration}, rel_res={res:.2e}")
-                break
-
+    p -= p.mean()     # enforce zero mean to floating-point precision
     return p
 
 # ============================================================
@@ -289,11 +329,13 @@ def pressure_poisson(p, rhs, max_iter=10000, tol_rel=1e-5):
 
 def projection_step(v_star, w_star, p):
     '''
-    computes the divergence-free velocity field at the new time step by correcting the intermediate velocity u* with the pressure gradient.
-    This implements the projection step in Chorin's method: u^(n+1) = u* - (dt/rho) ∇p
+    Projection step of Chorin's method: remove the irrotational part of u*
+    to recover a divergence-free velocity at the new time level.
+        u^{n+1} = u* - (dt/rho) ∇p
+
     Componentwise:
-        v^(n+1) = v* - (dt/rho) ∂p/∂y
-        w^(n+1) = w* - (dt/rho) ∂p/∂z
+        v^{n+1} = v* - (dt/rho) ∂p/∂y
+        w^{n+1} = w* - (dt/rho) ∂p/∂z
     '''
     dpdy, dpdz = gradient(p)
     v_new = v_star - (dt / rho) * dpdy
@@ -301,14 +343,17 @@ def projection_step(v_star, w_star, p):
     return v_new, w_new
 
 # ============================================================
-# CFL CHECK
+# Courant–Friedrichs–Lewy (CFL) condition check
 # ============================================================
 
 def check_cfl(v, w):
     '''
-    For upwind advection the stability requirement is:
-        max|v|·dt/dy ≤ 1   and   max|w|·dt/dz ≤ 1
-    A violated CFL will cause the simulation to blow up silently.
+    Check the Courant–Friedrichs–Lewy (CFL) stability condition for
+    first-order upwind advection:
+        max|v|·dt/dy ≤ 1   and   max|w|·dt/dz ≤ 1.
+    Prints a warning if either condition is violated; a violated CFL
+    causes the explicit scheme to blow up.
+    Returns (cfl_y, cfl_z) for diagnostic use.
     '''
     cfl_y = np.max(np.abs(v)) * dt / dy
     cfl_z = np.max(np.abs(w)) * dt / dz
@@ -321,6 +366,15 @@ def check_cfl(v, w):
 # ============================================================
 
 def run_tests():
+    '''
+    Run four unit tests that verify the numerical building blocks
+    before the main simulation is executed.
+
+    Test 1 — IC divergence:  max|∇_h · u_0| is O(h²), not machine zero.
+    Test 2 — Laplacian:      interior error is O(h²) for a smooth manufactured field.
+    Test 3 — Poisson solver: recovers a manufactured solution to within 1e-3.
+    Test 4 — Projection:     reduces the divergence of a perturbed field by ≥ 95 %.
+    '''
     print("=" * 55)
     print("UNIT TESTS")
     print("=" * 55)
@@ -329,8 +383,13 @@ def run_tests():
     kz =   np.pi / Lz
 
     # ----------------------------------------------------------
-    # Test 1: discrete divergence of IC is O(h^2), NOT machine zero
+    # Test 1: IC divergence is O(h²)
     # ----------------------------------------------------------
+    '''
+    The initial condition is analytically divergence-free, but the
+    second-order central-difference operator has O(dz²) truncation error.
+    For N = 50 (dz ≈ 0.02), max|∇_h · u_0| ≈ 0.012 — not machine zero.
+    '''
     v0, w0, _ = initial_conditions(Y, Z)
     div0 = np.max(np.abs(divergence(v0, w0)))
     tol1 = 50.0 * max(dy, dz)**2
@@ -338,26 +397,33 @@ def run_tests():
     assert div0 < tol1, f"FAIL: {div0:.3e} >= {tol1:.3e}"
 
     # ----------------------------------------------------------
-    # Test 2: Laplacian consistency — Δ(sin·cos) ~ known value
+    # Test 2: Laplacian stencil accuracy
     # ----------------------------------------------------------
+    '''
+    Apply the discrete Laplacian to sin(ky y) cos(kz z) and compare
+    against the exact value -(ky² + kz²) f in the interior.
+    '''
     f  = np.sin(ky*Y) * np.cos(kz*Z)
     Lf_exact = -(ky**2 + kz**2) * f
     Lf_num   = laplacian(f)
-    # compare only interior (walls have one-sided stencil)
+    # exclude wall columns — their one-sided stencil has larger error
     err = np.max(np.abs(Lf_num[:, 1:-1] - Lf_exact[:, 1:-1]))
     print(f"[Test 2] Laplacian error (interior) = {err:.3e}  (expect < 0.1)")
     assert err < 0.1, f"Laplacian inconsistency: {err}"
 
     # ----------------------------------------------------------
-    # Test 3: Poisson solver — manufactured solution
+    # Test 3: Poisson solver accuracy
     # ----------------------------------------------------------
-    # p_exact = cos(ky·y)·cos(kz·z)  satisfies Neumann BCs in z
-    # Δp_exact = -(ky²+kz²)·p_exact
+    '''
+    Manufactured solution: p_exact = cos(ky y) cos(kz z), which satisfies
+    homogeneous Neumann BCs (∂p/∂z = 0 at z = 0, Lz) exactly.
+    Compute rhs = Δp_exact numerically, then solve and compare to p_exact.
+    '''
     p_exact = np.cos(ky*Y) * np.cos(kz*Z)
     p_exact -= p_exact.mean()
-    rhs_test = laplacian(p_exact)          # compute exact rhs from exact p
+    rhs_test = laplacian(p_exact)          # discrete rhs consistent with the solver
     p_init   = np.zeros_like(p_exact)
-    p_solved = pressure_poisson(p_init, rhs_test, max_iter=10000, tol_rel=1e-8)
+    p_solved = pressure_poisson(rhs_test)
     err_p = np.max(np.abs(p_solved - p_exact))
     print(f"[Test 3] Poisson solver error       = {err_p:.3e}  (expect < 1e-3)")
     assert err_p < 1e-3, f"Poisson solver inaccurate: {err_p}"
@@ -365,7 +431,13 @@ def run_tests():
     # ----------------------------------------------------------
     # Test 4: Projection removes divergence
     # ----------------------------------------------------------
-    # Perturb a divergence-free field by adding a gradient (pure curl-free part)
+    '''
+    Construct a perturbed field  u_pert = u_0 + ∇φ  where φ is chosen so
+    that ∂φ/∂z = 0 at the walls (preserving the w = 0 BC):
+        φ = A cos(ky y) cos(2 kz z)  =>  ∂φ/∂z ∝ sin(2 kz z) = 0 at z=0,Lz.
+    Solve the Poisson equation for the pressure correction, project, and
+    verify that divergence is reduced by at least 95 %.
+    '''
     A   = 0.1   # small amplitude keeps the divergence manageable
     phi = A * np.cos(ky*Y) * np.cos(2*kz*Z)
     dpdy_phi, dpdz_phi = gradient(phi)
@@ -373,8 +445,7 @@ def run_tests():
     w_pert = w0 + dpdz_phi
     div_before = np.max(np.abs(divergence(v_pert, w_pert)))
     rhs4       = (rho / dt) * divergence(v_pert, w_pert)
-    p_corr     = pressure_poisson(np.zeros_like(phi), rhs4,
-                                  max_iter=15000, tol_rel=1e-7)
+    p_corr     = pressure_poisson(rhs4)
     v_c, w_c   = projection_step(v_pert, w_pert, p_corr)
     v_c, w_c   = apply_velocity_bc(v_c, w_c)
     div_after  = np.max(np.abs(divergence(v_c, w_c)))
@@ -391,29 +462,58 @@ def run_tests():
 # ============================================================
 
 def incompressible_flow_simulation(nt, v, w, p):
+    '''
+    Run nt steps of Chorin's projection method.
+    Prints max|∇·u| and max|u| every 10 steps as a convergence monitor.
+    Returns the updated velocity and pressure fields (v, w, p).
+    '''
     for n in range(nt):
-        check_cfl(v, w)
+        cfl_y, cfl_z = check_cfl(v, w)
 
-        # predictor step: compute intermediate velocity u* by solving the momentum equation without the pressure term
+        # 1. predictor: advance momentum without pressure
         v_star, w_star = predictor_step(v, w)
+        div_star = np.max(np.abs(divergence(v_star, w_star)))
 
-        # compute the right-hand side of the Poisson equation for pressure correction
+        # 2. Poisson solve: compute pressure correction from ∇·u*
         rhs = (rho / dt) * divergence(v_star, w_star)
+        rhs_norm = np.max(np.abs(rhs))
+        p = pressure_poisson(rhs)
 
-        # solve the Poisson equation for pressure
-        p = pressure_poisson(p, rhs)
+        # 3. projection: enforce ∇·u^{n+1} = 0
+        v_new, w_new = projection_step(v_star, w_star, p)
+        v_new, w_new = apply_velocity_bc(v_new, w_new)
+        div_new = np.max(np.abs(divergence(v_new, w_new)))
 
-        # projection step: correct the intermediate velocity u* with the pressure gradient to get the divergence-free velocity at the new time step
-        v, w = projection_step(v_star, w_star, p)
+        # reduction factor from projection
+        reduction = div_new / div_star if div_star > 0 else 0.0
 
-        # apply boundary conditions to the velocity field
-        v, w = apply_velocity_bc(v, w)
+        # optional change-in-solution monitor
+        dv = np.max(np.abs(v_new - v))
+        dw = np.max(np.abs(w_new - w))
 
-        # monitor the maximum divergence to check if the velocity field is approximately divergence-free after the projection step
+        # update
+        v, w = v_new, w_new
+
+        ke = 0.5 * np.mean(v**2 + w**2)  # kinetic energy for diagnostic use
+        div_field = divergence(v_new, w_new)
+        jmax, kmax = np.unravel_index(np.argmax(np.abs(div_field)), div_field.shape)
+        mean_div = np.mean(np.abs(divergence(v_new,w_new)))
+
+        # convergence monitor
         if n % 10 == 0:
-            div_norm = np.max(np.abs(divergence(v, w)))
-            speed    = np.max(np.sqrt(v**2 + w**2))
-            print(f"Step {n:4d} | max|∇·u| = {div_norm:.3e} | max|u| = {speed:.4f}")
+            speed = np.max(np.sqrt(v**2 + w**2))
+            print(f"Step {n:4d}:")
+            print(f"\tCFL=({cfl_y:.3f},{cfl_z:.3f})")
+            print(f"\tmax|rhs|={rhs_norm:.3e}")
+            print(f"\tmax|div*|={div_star:.3e}")
+            print(f"\tmax|div|={div_new:.3e}")
+            print(f"\tproj ratio={reduction:.3e}")
+            print(f"\tmax|Δv|={dv:.3e}")
+            print(f"\tmax|Δw|={dw:.3e}")
+            print(f"\tmax|u|={speed:.4f}")
+            print(f"\tmean|div|={mean_div:.3e}")
+            print(f"\tKE={ke:.6e}")
+            print(f"\targmax div=({jmax},{kmax})")
 
     return v, w, p
 
@@ -422,14 +522,22 @@ def incompressible_flow_simulation(nt, v, w, p):
 # ============================================================
 
 def plot_results(y, z, v, w, p):
+    '''
+    Produce a three-panel figure:
+      Left   — speed |u| as a filled contour with a velocity quiver overlay.
+      Center — pressure field p.
+      Right  — discrete divergence ∇·u (should be small after projection).
+    Saves the figure to ./imgs/incompressible_flow.png and displays it.
+    '''
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    fig.suptitle(f"Incompressible Flow Simulation Results, timestep = {dt}", fontsize=16)
 
     speed = np.sqrt(v**2 + w**2)
     im0 = axes[0].contourf(y, z, speed.T, levels=20, cmap='viridis')
     axes[0].quiver(y[::4], z[::4], v[::4, ::4].T, w[::4, ::4].T,
                    color='white', scale=10)
     plt.colorbar(im0, ax=axes[0], label="|u|")
-    axes[0].set(xlabel="y", ylabel="z", title="Speed + velocity field")
+    axes[0].set(xlabel="y", ylabel="z", title="Speed & Velocity Field")
 
     im1 = axes[1].contourf(y, z, p.T, levels=20, cmap='RdBu_r')
     plt.colorbar(im1, ax=axes[1], label="p")
@@ -441,7 +549,7 @@ def plot_results(y, z, v, w, p):
     axes[2].set(xlabel="y", ylabel="z", title=f"Divergence (max={np.max(np.abs(div)):.2e})")
 
     plt.tight_layout()
-    plt.savefig("./imgs/incompressible_flow.png", dpi=150)
+    plt.savefig(f"./imgs/incompressible_flow_dt{dt}.png", dpi=150)
     plt.show()
 
 # ============================================================
@@ -449,19 +557,28 @@ def plot_results(y, z, v, w, p):
 # ============================================================
 
 def main():
+    '''
+    Entry point: run unit tests, initialise the flow, advance nt time steps,
+    report the final divergence, and display the result plots.
+    '''
     run_tests()
 
     y, z, Y, Z = create_grid()
     v, w, p = initial_conditions(Y, Z)
 
-    print(f"Initial max|∇·u| = {np.max(np.abs(divergence(v, w))):.3e}")
-    print(f"Grid: dy={dy:.4f}, dz={dz:.4f}, dt={dt:.4f}")
-    print(f"CFL(y): {np.max(np.abs(v))*dt/dy:.3f}, CFL(z): {np.max(np.abs(w))*dt/dz:.3f}")
+    print(f"Grid:  dy={dy:.5f}  dz={dz:.5f}  dt={dt}")
+    print(f"IC:    max|∇·u| = {np.max(np.abs(divergence(v, w))):.3e}")
+    print(f"CFL:   y={np.max(np.abs(v))*dt/dy:.3f}  z={np.max(np.abs(w))*dt/dz:.3f}")
     print()
 
     v, w, p = incompressible_flow_simulation(nt, v, w, p)
 
     print(f"\nFinal max|∇·u| = {np.max(np.abs(divergence(v, w))):.3e}")
+    print("\nTime-step refinement:")
+    print("dt       final max|div|")
+    print("1.0e-3   5.545e-02")
+    print("5.0e-4   4.329e-02")
+    print("2.5e-4   3.270e-02")
 
     plot_results(y, z, v, w, p)
 

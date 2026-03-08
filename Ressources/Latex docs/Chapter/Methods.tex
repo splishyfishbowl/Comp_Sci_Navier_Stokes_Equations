@@ -91,7 +91,7 @@ To reduce the GTE of the operator splitting scheme to an error of order $\mathca
     \bm{u}_{k+1}=e^{\frac{\Delta t}{2}A}\cdot e^{{\Delta t B}}\cdot e^{\frac{\Delta t}{2}A} \bm{u}_k
 \end{equation}
 
-\subsection{Application of operator splitting on the Velocity equation \todo{is it really the name?}}
+\subsection{The velocity equation}
 We have seen operator splitting for a rather general problem. 
 We now apply operator splitting in the context of the velocity equation from the Navier-Stokes equation
 $$ \partial_t \bm{u} + \bm{u} \cdot \nabla \bm u + \frac{1}{\rho}\nabla p = \nu \Delta \bm{u} + \beta T\bm{e}_z $$
@@ -110,8 +110,51 @@ Each step assumes different simplifications and approximations to ensure all the
     \item{\textbf{Step 2:} \\ We now use this intermediate velocity to respect incompressibility and include pressure: $$ \bm{u}^{k+1} = \bm{u}^*-\nabla \bm{p}$$ We use the \textit{Helmholtz decomposition} to do this: $$\bm{u}^* = \bm{u}^\perp + \nabla \phi $$ It follows immediately, that $\bm{u}^{k+1}= \bm{u}^\perp$. We want $$\nabla \bm{u}_{k+1}=0 \Rightarrow  \nabla (\bm u^*-\nabla \bm p)=0 \Rightarrow \nabla (\bm u ^* - \nabla \bm p) = 0 \Rightarrow \nabla \bm u^* = \Delta p$$ as this gives us the Poisson equation for pressure.}
 \end{enumerate}
 
+Here, we want to quickly summarize what has happened so far. 
+If the reader does not feel in need of a overview, the following paragraphs can easily be left out.
+Nevertheless, we want to give a quick impression of the actual problem at this point to make it easier to follow later on.
+We begin by giving context to the physical problem adressed by Navier-Stokes.
 
-Now we want to apply operator splitting for all the different terms.
+
+The Navier-Stokes equations are partial differential equations that are hard to solve analytically.
+Thus, numerical methods are neccessary to solve for the velocity on our domain.
+The general problem described by the Navier-Stokes can be imagined in the following way:
+We ensure some dynamical characteristics that our fluid should have (e.g. how the volume changes under pressure, how the flow at one location is influenced by other locations, etc.). 
+These properties are ensured by the different operators that are all related to the flow behaviour in time.
+So basically, we are interested in the velocity of the fluid at each time step at every location on our domain.
+And the temporal development of such velocity at a certain location is determined by spatial characteristics at this location (e.g. the first and second derivative in space compared to the surrounding fluid).
+Basically, the \textit{temporal} change is driven by \textit{spatial} derivatives of the velocity itself. 
+Advection, for instance, is ensuring the transport of the fluids mass along its own direction of flow. 
+Diffusion on the other hand is modelling the smoothing of differences in velocity at different locations with time.
+Thus, if no additional forcing or energy input would cause unevenly distributed velocity behaviour, we should see stillness in the motion of the fluid.
+These processes only depend on characteristics of the vector field of the velocity $\textbf u$.
+But other terms, like the forcing $\beta T_z$ and $\frac{1}{\rho}\nabla p$ are indpendent of the velocity $\textbf u$ and create additional complexity.
+Although we will ignore any additional forcing (you could imagine heating at a certain location that e.g. creates convection) later on, we still are left to deal with the pressure properties.
+
+
+In our case, we consider an incompressible fluid. 
+Formally this is ensured by $\nabla \textbf u$ = 0
+Intuitively, that means that although we apply force to the fluid it will \textbf{not} change the volume it occupies in space.
+Vice versa, for decreased pressure there will not be any spatial expansion of the fluid. 
+So at no point in time and space, volume should be 'lost' or 'gained'. 
+As the pressure in a flowing fluid is a dynamical variable, we have to solve for it, too.
+Not only is it dynamical, it is also coupled to the velocity $\textbf{u}$.
+
+Why is this a problem? If we were to solve a PDE that only depends on $\textbf{u}$ we could rather easily discretize and solve numerically for $\textbf{u}$.
+But as we have another dynamical variable $p$ this gets more complicated.
+This why we need two steps: First, we assume that there is no coupling between velocity $\textbf u$ and pressure $p$. 
+We also neglect $\nabla \textbf u = 0$ in this step. 
+The first step therefore yields a first interim result $\textbf u^*$ for the velocity for the next timestep (at each location).
+In the second step we then include pressure and ensure the incompressibility.
+It turns out that we can efficiently combine this property with our pressure operator if a \textit{Helmholtz} decomposition is applied to the vector field.
+Finally, this leads to a poission equation to ensure the incompressibility and obtain a solution for the pressure.
+
+This way, we successfully obtained numerical solutions for an intermediate velocity and pressure that respects the incompressibility.
+The last challenge remaining is to obtain a discrete next step for a velocity that also respects the incompressibility. A description of such a procedure will be done in chapter \ref{Chorins}.
+
+\subsubsection{Operator splitting for the velocity equation}
+
+Coming back to our operators of the velocity equation, we want to apply operator splitting for all the different terms.
 We begin with the advection operator term.
 $$\partial_t \bm{u} + a_y\partial_y \bm{u} + a_z\partial_z\bm{u} = 0$$
 Here, we defined
@@ -141,6 +184,9 @@ The actual splitting is now exececuted in space first. The two spatial operators
 
     \item{Apply Lie Splitting in time: $\bm{u}^{k+1} = A_z(\Delta t)A_y(\Delta t)\bm{u}^{k}$}
 \end{enumerate}
+
+We now obtained a operator splitting for the (linear) advection equation. 
+In the next part we will examine the upward finite difference method to solve the obtained equations numerically.
 
 \subsection{Upward Finite Difference Method}
 To introduce the Upward Finite Difference Method we first want to look again at the one-dimensional linear advection equation

@@ -2,9 +2,9 @@
 3.3 Incompressible Flow
 Comp_Sci_Navier_Stokes_Equations.src.IncompressibleFlow
 
-Solves the incompressible Navier–Stokes equations (β = 0):
+Solves the incompressible Navier-Stokes equations (β = 0):
 
-    ∂_t u + u · ∇u + ∇p/ρ = ν Δu    (momentum)
+    ∂_t u + u · ∇u + ∇p/rho = nu Δu (momentum)
     ∇ · u = 0                       (incompressibility)
 
 on a 2-D (y, z) domain that is periodic in y and wall-bounded in z,
@@ -12,9 +12,9 @@ using Chorin's projection method:
 
   1. Predictor  — advance u^n with advection + diffusion, ignoring pressure,
                   to obtain an intermediate velocity u* (not divergence-free).
-  2. Poisson    — solve  Δp = (ρ/dt) ∇·u*  for the pressure correction,
+  2. Poisson    — solve  Δp = (rho/dt) ∇·u*  for the pressure correction,
                   with Neumann BCs (∂p/∂n = 0) and zero mean.
-  3. Projection — correct u* via  u^{n+1} = u* − (dt/ρ) ∇p  so that
+  3. Projection — correct u* via  u^{n+1} = u* - (dt/rho) ∇p  so that
                   ∇·u^{n+1} = 0 to within solver tolerance.
 '''
 
@@ -269,25 +269,28 @@ def predictor_step(v, w):
 
 def pressure_poisson(rhs):
     '''
-    Solve  Δp = rhs  using Jacobi iteration, subject to:
+    Solve  Δp = rhs  using a spectral direct solver, subject to:
         - periodic BCs in y,
         - Neumann BCs in z  (∂p/∂n = 0, enforced via reflection ghost cells),
         - zero-mean gauge   (mean(p) = 0, to fix the pressure up to a constant).
 
-    The Neumann problem requires the compatibility condition ∫ rhs dΩ = 0,
-    which is enforced by subtracting rhs.mean() before iteration.
+    The Poisson equation is diagonalised using:
+        - a Fast Fourier Transform (FFT) in the periodic y-direction,
+        - a Discrete Cosine Transform type-I (DCT-I) in the z-direction,
+          which corresponds to Neumann boundary conditions.
 
-    The z-neighbour arrays in the Jacobi update are constructed to exactly
-    mirror the laplacian() stencil (reflection ghost at walls, true neighbours
-    in the interior), so the iteration converges to the correct solution.
+    The Neumann problem requires the compatibility condition ∫ rhs dΩ = 0,
+    which is enforced by subtracting rhs.mean() before solving.
+
+    In spectral space, the Poisson equation reduces to a set of algebraic
+    equations whose eigenvalues correspond to the discrete Laplacian in
+    the y and z directions. The pressure spectrum is obtained by dividing
+    by these eigenvalues, with the zero mode fixed to enforce the
+    zero-mean pressure gauge.
 
     Parameters
     ----------
-    p        : initial guess for the pressure field  (Ny x Nz array).
-    rhs      : right-hand side  rhs = (rho/dt) ∇·u*  (Ny x Nz array).
-    max_iter : maximum number of Jacobi iterations.
-    tol_rel  : convergence tolerance on the relative residual
-               max|Δp - rhs| / max|rhs|.
+    rhs : right-hand side  rhs = (rho/dt) ∇·u*  (Ny x Nz array).
 
     Returns
     -------

@@ -34,8 +34,23 @@ dy = Ly / Ny            # periodic in y: no repeated endpoint
 dz = Lz / (Nz - 1)      # walls-bounded z: endpoint included
 
 # time discretization
-dt = 0.000001            # time step
+dt = None                # chosen automatically from CFL + diffusion bound
 nt = 100                 # number of time steps
+
+def choose_dt(v, w, safety=0.4):
+    '''
+    Pick a stable explicit time step from:
+      - advection CFL: max|v| dt/dy <= 1, max|w| dt/dz <= 1
+      - diffusion bound: dt <= 1 / (2*nu*(1/dy^2 + 1/dz^2))
+    safety < 1 adds margin.
+    '''
+    vmax = max(np.max(np.abs(v)), 1e-14)
+    wmax = max(np.max(np.abs(w)), 1e-14)
+
+    dt_adv = safety * min(dy / vmax, dz / wmax)
+    dt_diff = safety * 0.5 / (nu * (1.0/dy**2 + 1.0/dz**2))
+
+    return min(dt_adv, dt_diff)
 
 # physical parameters
 rho = 1.0                # density
@@ -296,26 +311,26 @@ def pressure_poisson(rhs):
     -------
     p : pressure field satisfying Δp ≈ rhs with the boundary conditions above.
     '''
-    rhs = rhs - rhs.mean()   # compatibility condition: ∫ rhs dΩ = 0 for Neumann
+    rhs = rhs - rhs.mean() # compatibility condition: ∫ rhs dΩ = 0 for Neumann
 
     # 1. FFT in y  (all Ny modes; result is complex)
-    F = fft(rhs, axis=0)                                           # (Ny, Nz)
+    F = fft(rhs, axis=0) # (Ny, Nz)
 
-    # 2. DCT-1 in z  (scipy DCT-1 diagonalises the Neumann Laplacian stencil)
+    # 2. DCT-1 in z (scipy DCT-1 diagonalises the Neumann Laplacian stencil)
     #    Applied separately to real and imaginary parts since scipy DCT is real-only.
-    G = dct(F.real, type=1, axis=1) + 1j * dct(F.imag, type=1, axis=1)   # (Ny, Nz)
+    G = dct(F.real, type=1, axis=1) + 1j * dct(F.imag, type=1, axis=1) # (Ny, Nz)
 
     # 3. Eigenvalues of the discrete operators
     k   = np.arange(Ny)
-    lam_y = 2 * (np.cos(2*np.pi*k / Ny)      - 1) / dy**2        # (Ny,)
+    lam_y = 2 * (np.cos(2*np.pi*k / Ny) - 1) / dy**2 # (Ny,)
     m   = np.arange(Nz)
-    lam_z = 2 * (np.cos(np.pi*m  / (Nz - 1)) - 1) / dz**2        # (Nz,)
-    mu    = lam_y[:, None] + lam_z[None, :]                        # (Ny, Nz)
+    lam_z = 2 * (np.cos(np.pi*m  / (Nz - 1)) - 1) / dz**2 # (Nz,)
+    mu    = lam_y[:, None] + lam_z[None, :] # (Ny, Nz)
 
     # 4. Solve in spectral space; pin gauge mode to zero
-    mu[0, 0] = 1.0    # avoid division by zero
+    mu[0, 0] = 1.0 # avoid division by zero
     P = G / mu
-    P[0, 0] = 0.0     # zero-mean: the (0,0) mode is the spatial mean of p
+    P[0, 0] = 0.0 # zero-mean: the (0,0) mode is the spatial mean of p
 
     # 5. Inverse DCT-1 in z, then inverse FFT in y
     p = ifft(
@@ -361,7 +376,7 @@ def check_cfl(v, w):
     cfl_y = np.max(np.abs(v)) * dt / dy
     cfl_z = np.max(np.abs(w)) * dt / dz
     if max(cfl_y, cfl_z) > 1.0:
-        print(f"  [WARNING] CFL violated: CFL_y={cfl_y:.3f}, CFL_z={cfl_z:.3f}")
+        print(f"[WARNING] CFL violated: CFL_y={cfl_y:.3f}, CFL_z={cfl_z:.3f}")
     return cfl_y, cfl_z
 
 # ============================================================
@@ -424,11 +439,11 @@ def run_tests():
     '''
     p_exact = np.cos(ky*Y) * np.cos(kz*Z)
     p_exact -= p_exact.mean()
-    rhs_test = laplacian(p_exact)          # discrete rhs consistent with the solver
+    rhs_test = laplacian(p_exact) # discrete rhs consistent with the solver
     p_init   = np.zeros_like(p_exact)
     p_solved = pressure_poisson(rhs_test)
     err_p = np.max(np.abs(p_solved - p_exact))
-    print(f"[Test 3] Poisson solver error       = {err_p:.3e}  (expect < 1e-3)")
+    print(f"[Test 3] Poisson solver error = {err_p:.3e} (expect < 1e-3)")
     assert err_p < 1e-3, f"Poisson solver inaccurate: {err_p}"
 
     # ----------------------------------------------------------
@@ -564,10 +579,14 @@ def main():
     Entry point: run unit tests, initialise the flow, advance nt time steps,
     report the final divergence, and display the result plots.
     '''
-    run_tests()
 
     y, z, Y, Z = create_grid()
     v, w, p = initial_conditions(Y, Z)
+
+    global dt
+    dt = choose_dt(v, w)
+
+    run_tests()
 
     print(f"Grid:  dy={dy:.5f}  dz={dz:.5f}  dt={dt}")
     print(f"IC:    max|∇·u| = {np.max(np.abs(divergence(v, w))):.3e}")

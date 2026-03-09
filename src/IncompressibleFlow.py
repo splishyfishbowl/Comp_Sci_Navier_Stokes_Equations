@@ -16,6 +16,14 @@ using Chorin's projection method:
                   with Neumann BCs (∂p/∂n = 0) and zero mean.
   3. Projection — correct u* via  u^{n+1} = u* - (dt/rho) ∇p  so that
                   ∇·u^{n+1} = 0 to within solver tolerance.
+
+Initial condition modes (IC_MODE):
+  "mode1"  — v =  sin(ky y) cos(kz z),   w = -(ky/kz) cos(ky y) sin(kz z)
+  "mode2"  — v =  sin(2ky y) cos(kz z),  w = -(2ky/kz) cos(2ky y) sin(kz z)
+  "mode3"  — v =  sin(ky y) cos(2kz z),  w = -(ky/2kz) cos(ky y) sin(2kz z)
+  "double" — superposition of mode1 and mode2 (linearly combined)
+  "custom" — user-supplied functions via IC_CUSTOM_V and IC_CUSTOM_W
+             (see main() for how to provide them)
 '''
 
 import numpy as np
@@ -37,6 +45,10 @@ dz = Lz / (Nz - 1)      # walls-bounded z: endpoint included
 dt = None                # chosen automatically from CFL + diffusion bound
 nt = 100                 # number of time steps
 
+# physical parameters
+rho = 1.0                # density
+nu = 0.01                # kinematic viscosity
+
 def choose_dt(v, w, safety=0.4):
     '''
     Pick a stable explicit time step from:
@@ -51,10 +63,6 @@ def choose_dt(v, w, safety=0.4):
     dt_diff = safety * 0.5 / (nu * (1.0/dy**2 + 1.0/dz**2))
 
     return min(dt_adv, dt_diff)
-
-# physical parameters
-rho = 1.0                # density
-nu = 0.01                # kinematic viscosity
 
 # ============================================================
 # GRID
@@ -76,25 +84,89 @@ def create_grid():
 # INITIAL CONDITIONS
 # ============================================================
 
-def initial_conditions(Y, Z):
+'''
+Registry of built-in IC modes.
+Each entry maps a mode name to:
+    "v_fn"  : callable(Y, Z, ky, kz) -> v-field
+    "w_fn"  : callable(Y, Z, ky, kz) -> w-field
+    "label" : human-readable formula string for plot annotations
+'''
+IC_REGISTRY = {
+    "mode1": {
+        "v_fn":  lambda Y, Z, ky, kz:  np.sin(ky*Y) * np.cos(kz*Z),
+        "w_fn":  lambda Y, Z, ky, kz: -(ky/kz) * np.cos(ky*Y) * np.sin(kz*Z),
+        "label": "v = sin(ky·y)cos(kz·z),  w = -(ky/kz)cos(ky·y)sin(kz·z)",
+    },
+    "mode2": {
+        "v_fn":  lambda Y, Z, ky, kz:  np.sin(2*ky*Y) * np.cos(kz*Z),
+        "w_fn":  lambda Y, Z, ky, kz: -(2*ky/kz) * np.cos(2*ky*Y) * np.sin(kz*Z),
+        "label": "v = sin(2ky·y)cos(kz·z),  w = -(2ky/kz)cos(2ky·y)sin(kz·z)",
+    },
+    "mode3": {
+        "v_fn":  lambda Y, Z, ky, kz:  np.sin(ky*Y) * np.cos(2*kz*Z),
+        "w_fn":  lambda Y, Z, ky, kz: -(ky/(2*kz)) * np.cos(ky*Y) * np.sin(2*kz*Z),
+        "label": "v = sin(ky·y)cos(2kz·z),  w = -(ky/2kz)cos(ky·y)sin(2kz·z)",
+    },
+    "double": { # superposition of mode1 and mode2 (linearly combined)
+        "v_fn":  lambda Y, Z, ky, kz: (
+                     np.sin(ky*Y) * np.cos(kz*Z)
+                   + np.sin(2*ky*Y) * np.cos(kz*Z)
+                 ),
+        "w_fn":  lambda Y, Z, ky, kz: (
+                   -(ky/kz) * np.cos(ky*Y) * np.sin(kz*Z)
+                   -(2*ky/kz) * np.cos(2*ky*Y) * np.sin(kz*Z)
+                 ),
+        "label": "v = sin(ky·y)cos(kz·z) + sin(2ky·y)cos(kz·z)  [mode1+mode2]",
+    },
+}
+
+def initial_conditions(Y, Z, ic_mode="mode1", ic_custom_v=None, ic_custom_w=None):
     '''
-    Analytically divergence-free initial condition:
-        v =  sin(ky y) cos(kz z)
-        w = -(ky/kz) cos(ky y) sin(kz z)
+    Return an analytically divergence-free initial velocity (v, w) and
+    zero pressure, based on the chosen ic_mode.
 
-    Continuous verification:
-        ∂v/∂y + ∂w/∂z = ky cos(ky y) cos(kz z) − (ky/kz)·kz cos(ky y) cos(kz z) = 0
+    Parameters
+    ----------
+    Y, Z         : 2-D meshgrid arrays from create_grid().
+    ic_mode      : str — one of "mode1", "mode2", "mode3", "double", "custom".
+    ic_custom_v  : callable(Y, Z, ky, kz) -> array, required when ic_mode="custom".
+    ic_custom_w  : callable(Y, Z, ky, kz) -> array, required when ic_mode="custom".
 
-    Wall condition:
-        w = 0 at z = 0 and z = Lz because sin(0) = sin(π) = 0
+    Returns
+    -------
+    v, w  : velocity components (Ny x Nz arrays)
+    p     : pressure            (Ny x Nz, initialised to zero)
+    label : str describing the velocity formula (used in plot titles)
+
+    Wall condition check (all built-in modes):
+        w = 0 at z = 0 and z = Lz  because sin(·) = 0 there.
     '''
     ky = 2*np.pi / Ly
-    kz = np.pi / Lz
+    kz = np.pi   / Lz
 
-    v = np.sin(ky*Y) * np.cos(kz*Z)             # y-velocity component
-    w = -(ky/kz) * np.cos(ky*Y) * np.sin(kz*Z)  # z-velocity component
-    p = np.zeros((Ny, Nz))                      # initial pressure (zero)
-    return v, w, p
+    if ic_mode == "custom":
+        if ic_custom_v is None or ic_custom_w is None:
+            raise ValueError(
+                "ic_mode='custom' requires ic_custom_v and ic_custom_w callables."
+            )
+        v = ic_custom_v(Y, Z, ky, kz)
+        w = ic_custom_w(Y, Z, ky, kz)
+        label = "v = custom_v(Y,Z,ky,kz), w = custom_w(Y,Z,ky,kz)"
+
+    elif ic_mode in IC_REGISTRY:
+        entry = IC_REGISTRY[ic_mode]
+        v     = entry["v_fn"](Y, Z, ky, kz)
+        w     = entry["w_fn"](Y, Z, ky, kz)
+        label = entry["label"]
+
+    else:
+        raise ValueError(
+            f"Unknown ic_mode='{ic_mode}'. "
+            f"Choose from {list(IC_REGISTRY.keys())} or 'custom'."
+        )
+    
+    p = np.zeros((Ny, Nz)) # initial pressure (zero)
+    return v, w, p, label
 
 # ============================================================
 # BOUNDARY CONDITIONS
@@ -366,7 +438,7 @@ def projection_step(v_star, w_star, p):
 
 def check_cfl(v, w):
     '''
-    Check the Courant–Friedrichs–Lewy (CFL) stability condition for
+    Check the Courant-Friedrichs-Lewy (CFL) stability condition for
     first-order upwind advection:
         max|v|·dt/dy ≤ 1   and   max|w|·dt/dz ≤ 1.
     Prints a warning if either condition is violated; a violated CFL
@@ -383,7 +455,7 @@ def check_cfl(v, w):
 # TESTS
 # ============================================================
 
-def run_tests():
+def run_tests(ic_mode="mode1", ic_custom_v=None, ic_custom_w=None):
     '''
     Run four unit tests that verify the numerical building blocks
     before the main simulation is executed.
@@ -394,7 +466,7 @@ def run_tests():
     Test 4 — Projection:     reduces the divergence of a perturbed field by ≥ 95 %.
     '''
     print("=" * 55)
-    print("UNIT TESTS")
+    print(f"UNIT TESTS: {ic_mode}")
     print("=" * 55)
     y, z, Y, Z = create_grid()
     ky = 2*np.pi / Ly
@@ -404,13 +476,25 @@ def run_tests():
     # Test 1: IC divergence is O(h²)
     # ----------------------------------------------------------
     '''
-    The initial condition is analytically divergence-free, but the
-    second-order central-difference operator has O(dz²) truncation error.
-    For N = 50 (dz ≈ 0.02), max|∇_h · u_0| ≈ 0.012 — not machine zero.
+    The central-difference truncation error on ∇·u scales as
+      (n·ky)²·dy²  +  (m·kz)²·dz²
+    where n, m are the y- and z-wavenumber multipliers of the chosen mode.
+    A fixed tolerance calibrated for mode1 (n=m=1) therefore under-estimates
+    the expected error for higher modes such as mode2 (n=2) or mode3 (m=2).
+    We derive the multipliers from the registry so the tolerance is always tight.
     '''
-    v0, w0, _ = initial_conditions(Y, Z)
+    _mode_components  = {
+        "mode1":  [(1, 1)],         # sin(1·ky·y) cos(1·kz·z)
+        "mode2":  [(2, 1)],         # sin(2·ky·y) cos(1·kz·z)
+        "mode3":  [(1, 2)],         # sin(1·ky·y) cos(2·kz·z)
+        "double": [(1, 1), (2, 1)], # mode1 + mode2: errors add
+        "custom": [(2, 2)],         # conservative upper bound for unknown ICs
+    }
+    components = _mode_components.get(ic_mode, [(2, 2)])
+    tol1 = 2.0 * sum((ny * ky)**2 * dy**2 + (nz * kz)**2 * dz**2 for ny, nz in components)
+
+    v0, w0, _, _ = initial_conditions(Y, Z, ic_mode, ic_custom_v, ic_custom_w)
     div0 = np.max(np.abs(divergence(v0, w0)))
-    tol1 = 50.0 * max(dy, dz)**2
     print(f"[Test 1] max|div(u_0)|  = {div0:.3e}  (expect < 50*h^2 = {tol1:.3e})")
     assert div0 < tol1, f"FAIL: {div0:.3e} >= {tol1:.3e}"
 
@@ -473,7 +557,7 @@ def run_tests():
     assert div_after < 0.05 * div_before, \
         f"FAIL: {div_after:.3e} should be < 5% of {div_before:.3e}"
 
-    print("All tests passed.\n")
+    print(f"{ic_mode}: All tests passed.\n")
 
 # ============================================================
 # SIMULATION
@@ -505,13 +589,12 @@ def incompressible_flow_simulation(nt, v, w, p):
         # reduction factor from projection
         reduction = div_new / div_star if div_star > 0 else 0.0
 
-        # optional change-in-solution monitor
-        dv = np.max(np.abs(v_new - v))
-        dw = np.max(np.abs(w_new - w))
-
         # update
         v, w = v_new, w_new
 
+        # diagnostics 
+        dv = np.max(np.abs(v_new - v))
+        dw = np.max(np.abs(w_new - w))
         ke = 0.5 * np.mean(v**2 + w**2)  # kinetic energy for diagnostic use
         div_field = divergence(v_new, w_new)
         jmax, kmax = np.unravel_index(np.argmax(np.abs(div_field)), div_field.shape)
@@ -539,16 +622,25 @@ def incompressible_flow_simulation(nt, v, w, p):
 # PLOTTING
 # ============================================================
 
-def plot_results(y, z, v, w, p):
+def plot_results(y, z, v, w, p, ic_mode="mode1", ic_label=""):
     '''
     Produce a three-panel figure:
       Left   — speed |u| as a filled contour with a velocity quiver overlay.
       Center — pressure field p.
       Right  — discrete divergence ∇·u (should be small after projection).
-    Saves the figure to ./imgs/incompressible_flow.png and displays it.
+
+    ic_label is printed as a subtitle so the velocity formula is visible on the plot.
+    Saves the figure to ./imgs/incompressible_flow_dt<dt>.png and displays it.
     '''
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    fig.suptitle(f"Incompressible Flow Simulation Results, timestep = {dt}", fontsize=16)
+
+    # Main title: timestep info + IC formula as subtitle
+    fig.suptitle(
+        f"Incompressible Flow Simulation  |  dt = {dt:.4e}  |  nt = {nt}\n"
+        f"IC: {ic_label}",
+        fontsize=11,
+        y=0.98
+    )
 
     speed = np.sqrt(v**2 + w**2)
     im0 = axes[0].contourf(y, z, speed.T, levels=20, cmap='viridis')
@@ -566,8 +658,8 @@ def plot_results(y, z, v, w, p):
     plt.colorbar(im2, ax=axes[2], label="∇·u")
     axes[2].set(xlabel="y", ylabel="z", title=f"Divergence (max={np.max(np.abs(div)):.2e})")
 
-    plt.tight_layout()
-    plt.savefig(f"./imgs/incompressible_flow_dt{dt}.png", dpi=150)
+    plt.tight_layout(rect=[0, 0, 1, 0.93])
+    plt.savefig(f"./imgs/incompressible_flow__{ic_mode}_dt{dt}.png", dpi=150)
     plt.show()
 
 # ============================================================
@@ -576,33 +668,53 @@ def plot_results(y, z, v, w, p):
 
 def main():
     '''
-    Entry point: run unit tests, initialise the flow, advance nt time steps,
-    report the final divergence, and display the result plots.
+    Entry point: set IC_MODE here to choose the initial velocity field.
+
+    Available modes
+    ---------------
+    "mode1"  — v =  sin(ky y) cos(kz z),   w = -(ky/kz) cos(ky y) sin(kz z)
+    "mode2"  — v =  sin(2ky y) cos(kz z),  w = -(2ky/kz) cos(2ky y) sin(kz z)
+    "mode3"  — v =  sin(ky y) cos(2kz z),  w = -(ky/2kz) cos(ky y) sin(2kz z)
+    "double" — superposition of mode1 + mode2
+    "custom" — supply your own functions via IC_CUSTOM_V / IC_CUSTOM_W below.
+
+    Custom mode example
+    -------------------
+    IC_MODE = "custom"
+    IC_CUSTOM_V = lambda Y, Z, ky, kz: np.sin(3*ky*Y) * np.cos(kz*Z)
+    IC_CUSTOM_W = lambda Y, Z, ky, kz: -(3*ky/kz) * np.cos(3*ky*Y) * np.sin(kz*Z)
     '''
 
+    # ── USER PARAMETER ─────────────────────────────────────────────────────────
+    IC_MODE     = "mode1"   # <-- change to "mode2", "mode3", "double", or "custom"
+    IC_CUSTOM_V = None      # set to a callable when IC_MODE = "custom"
+    IC_CUSTOM_W = None      # set to a callable when IC_MODE = "custom"
+    # ───────────────────────────────────────────────────────────────────────────
+
     y, z, Y, Z = create_grid()
-    v, w, p = initial_conditions(Y, Z)
+    v, w, p, label = initial_conditions(Y, Z, IC_MODE, IC_CUSTOM_V, IC_CUSTOM_W)
 
     global dt
     dt = choose_dt(v, w)
 
-    run_tests()
+    run_tests("mode1")
+    run_tests("mode2")
+    run_tests("mode3")
+    run_tests("double")
 
-    print(f"Grid:  dy={dy:.5f}  dz={dz:.5f}  dt={dt}")
-    print(f"IC:    max|∇·u| = {np.max(np.abs(divergence(v, w))):.3e}")
-    print(f"CFL:   y={np.max(np.abs(v))*dt/dy:.3f}  z={np.max(np.abs(w))*dt/dz:.3f}")
+    print(f"IC mode   : {IC_MODE}")
+    print(f"velocity y: {y}")
+    print(f"velocity z: {z}")
+    print(f"Grid      : dy={dy:.5f}  dz={dz:.5f}  dt={dt}")
+    print(f"IC        : max|∇·u| = {np.max(np.abs(divergence(v, w))):.3e}")
+    print(f"CFL       : y={np.max(np.abs(v))*dt/dy:.3f}  z={np.max(np.abs(w))*dt/dz:.3f}")
     print()
 
     v, w, p = incompressible_flow_simulation(nt, v, w, p)
 
     print(f"\nFinal max|∇·u| = {np.max(np.abs(divergence(v, w))):.3e}")
-    print("\nTime-step refinement:")
-    print("dt       final max|div|")
-    print("1.0e-3   5.545e-02")
-    print("5.0e-4   4.329e-02")
-    print("2.5e-4   3.270e-02")
 
-    plot_results(y, z, v, w, p)
+    plot_results(y, z, v, w, p, ic_mode=IC_MODE, ic_label=label)
 
 
 if __name__ == "__main__":

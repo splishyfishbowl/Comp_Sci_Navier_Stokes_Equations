@@ -636,8 +636,8 @@ def plot_results(y, z, v, w, p, ic_mode="mode1", ic_label=""):
 
     # Main title: timestep info + IC formula as subtitle
     fig.suptitle(
-        f"Incompressible Flow Simulation  |  dt = {dt:.4e}  |  nt = {nt}\n"
-        f"IC: {ic_label}",
+        f"Incompressible Flow Simulation  |  dt = {dt:.4e}  |  timesteps = {nt}\n"
+        f"{ic_label}",
         fontsize=11,
         y=0.98
     )
@@ -659,7 +659,7 @@ def plot_results(y, z, v, w, p, ic_mode="mode1", ic_label=""):
     axes[2].set(xlabel="y", ylabel="z", title=f"Divergence (max={np.max(np.abs(div)):.2e})")
 
     plt.tight_layout(rect=[0, 0, 1, 0.93])
-    plt.savefig(f"./imgs/incompressible_flow__{ic_mode}_dt{dt}.png", dpi=150)
+    plt.savefig(f"./imgs/incompressible_flow__{ic_mode}.png", dpi=150)
     plt.show()
 
 # ============================================================
@@ -701,13 +701,13 @@ def main():
     run_tests("mode2")
     run_tests("mode3")
     run_tests("double")
+    print("All built-in modes passed unit tests!!\n")
 
-    print(f"IC mode   : {IC_MODE}")
-    print(f"velocity y: {y}")
-    print(f"velocity z: {z}")
-    print(f"Grid      : dy={dy:.5f}  dz={dz:.5f}  dt={dt}")
-    print(f"IC        : max|∇·u| = {np.max(np.abs(divergence(v, w))):.3e}")
-    print(f"CFL       : y={np.max(np.abs(v))*dt/dy:.3f}  z={np.max(np.abs(w))*dt/dz:.3f}")
+    print(f"IC mode : {IC_MODE}")
+    print(f"velocity: {label}")
+    print(f"Grid    : dy={dy:.5f}  dz={dz:.5f}  dt={dt}")
+    print(f"IC      : max|∇·u| = {np.max(np.abs(divergence(v, w))):.3e}")
+    print(f"CFL     : y={np.max(np.abs(v))*dt/dy:.3f}  z={np.max(np.abs(w))*dt/dz:.3f}")
     print()
 
     v, w, p = incompressible_flow_simulation(nt, v, w, p)

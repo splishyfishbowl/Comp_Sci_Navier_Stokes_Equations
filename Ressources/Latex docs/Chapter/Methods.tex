@@ -1,4 +1,4 @@
-\chapter{"`Methods"': Konzept, Analyse, Experiment etc.}
+\chapter{Methods}
 
 
 \section{First task}
@@ -593,5 +593,83 @@ To summarize, we obtain the following numerical procedure:
     =-\frac{1}{\rho}\nabla p$ and obtain $\textbf u^{n+1}$}
     
 \end{enumerate}
-\section{Further tasks}
+\section{Rayleigh-Bernard convection}
+So far we have ignored any forcing in the velocity equation of the Navier-Stokes equation.
+In the following section we want to introduce thermal forcing to reproduce the Rayleigh-Bernard convection cells. 
+Just to name one example, they occur in climatology on different scales and convective phenomena are important in various proccesses all over the global atmospheric system.
+In this section we want to find adequate initial conditions and parameters to reproduce such a convective behaviour using our solutions.
+\subsubsection{Physical parameters}
+To start, we once again want to consider the momentum equation. 
+For our problem, we will use the Boussinesque-approximation \todo{explain Boussinesque-approximation}.
+This leads to
+$$\partial_t \textbf{u} + (\textbf{u})\cdot \nabla +  \frac{1}{\rho}\nabla p = \nu \nabla \textbf u + T \beta e_z $$
 
+As we are interested in a certain set of parameters we briefly want to give some inuitive idea of what the parameters are describing.
+Consider $\nu$ for example:
+If $\nu$ is too high (modelling too much friction), the fluid will remain in a purely conductive state, implying the absense of convective cells.
+The buyoancy parameter $\beta$ is of importance, too. 
+If $\beta$ is too low, then heat will simply diffuse across the fluid instead of creating motion due to located heat forcing.
+We see, that these parameters are essential for a successful recreation of the convective cells.
+While viscosity $\nu$ determines, in how far the fluid is 'allowed' to react to the thermal forcing $beta$ represents the strength of the thermal coupling.
+
+In a dimensionless, more general context, the onset of convection is determined by the Rayleigh number.
+In our case, the Rayleigh number is directly proportional to $\frac{\beta}{\nu}$.
+We have to choose $\beta$ large enough (or $\nu$ small) to overcome the internal friction and thermal diffusion of the fluid.
+
+\subsection{Initial conditions}
+To trigger the desired convection cells we not only are in need of an accurate parameterization.
+We also rely on appropiate initial conditions.
+As symmetry in the initial conditions could hinder the formation of convective cells, we can not start with a perfectly uniform or stratified fluid.
+
+Instead, we are suggesting the following characteristics for the initial conditions in our context.
+Firstly, we want to implement a conductive profile. 
+That means, that we start with a temperature field $T_0(y,z)$ that roughly follows the linear profile $1-z$ (hot at the bottom, cold at the top).
+
+Secondly, we want to break the symmetry in the velocity field by the introduction of small perturbations.
+We chose random noise that is used to initialize the velocity field $\textbf u_0(y,z)$.
+These perturbations will be amplified by the the buoyancy term $T \beta e_z$ and, if the Rayleigh number is high enough, eventually lead to the emergence of Rayleigh-Bernard convection.
+
+Formally, the described set of initial conditions can be described in the following way.
+On our domain $\Omega=[0,1]^2$ we introduce time-invariant temperatures (constant heating across time):
+In a perfectly still fluid ($\textbf u=0$) the temperature settles into a linear conductivity profile.
+$$T(x,y)= 1-z$$
+This set up implies $T=1$ at $z=0$ (bottom) and $T=0$ at $z=1$ (top).
+Note, that this state satisfies the equilibrium condition meaning 
+$$
+\partial _t T + \textbf u \Delta T = \Delta T
+$$
+where $\Delta T=0$ and $\textbf u \cdot \Delta t=0$.
+
+To introduce the mentioned perturbations is the temperature field, we will add noise to these initial conditions.
+$$T=(1-z)+ \epsilon $$
+
+To understand, if such perturbations will grow or vanish, we substitute the temperature field into the momentum equations and linearize them.
+This is performed by dropping nonlinear terms like $\nu \cdot \nabla \epsilon$ or $(\textbf u \cdot \nabla) \textbf u$
+
+That is how we obtain the temperature equations
+\begin{align}
+\partial_t + u \cdot \nabla (1-z)&=\Delta \epsilon \\
+\nabla (1-z)&=-e_z \\
+\end{align}
+
+This leads to $\textbf u \cdot (1-z) = -w$
+So in total we obtain the linearized heat equation
+$$\partial_t \epsilon = w + \Delta \epsilon$$
+
+We can see, that a vertical upward motion $w>0$ acts as the source term that increases the local temperature perturbation.
+
+If we ignore non-linear terms in the momentum equation and split decompose pressure into a static part and perturbation $p'$, the vertical component of the momentum becomes:
+$$\partial_t w + \frac{1}{\rho}\partial_z p' = \nu \Delta w + \epsilon \beta$$
+
+Here, $\epsilon \beta $ is the buoyancy force.
+It drives the vertical velocity $w$, which in turn increases the perturbation $\epsilon$.
+Thus, stability is is depending on buoyancy and damping.
+
+The perturbations depend on two major forces:
+\begin{enumerate}
+    \item{\textbf{Driving forces}: The buoyancy term ($T\beta e_z$) which amplifies the disturbances as hot fluid is rising.}
+    \item{\textbf{Damping forces}: The viscosity $\nu \Delta \textbf u$ and thermal diffusion $\Delta T$, which act to 'smooth' velocity and temperature gradients.}
+\end{enumerate} 
+
+In conclusion, we see that the growth rate of the perturbations $\epsilon$ become positive only when the buoyancy term overcomes these damping effects.
+If $\beta $ is too small, diffusion is more important, and the perturbation decays back to the conductive state.

@@ -1,8 +1,9 @@
 \babel@toc {english}{}\relax 
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {2.1}{\ignorespaces \textbf {Dsicretized Boundary Conditions (BC)} Boundary conditions for all of the four boundaries of the twodimensional domain $\Omega = [0,1]^2$. Each row represents one boundary and shows the continous and numerical representation of the boundary conditions given in the task. Numerical approximation was performed by using a central finite difference approach.}}{16}{table.2.1}%
+\contentsline {table}{\numberline {2.1}{\ignorespaces \textbf {Initial condition modes.} Each built-in mode is characterized by its $y$- and $z$-wavenumber multipliers $(n_y, n_z)$. The \texttt {double} mode is the linear superposition of \texttt {mode1} and \texttt {mode2}; the \texttt {custom} mode accepts user-supplied velocity functions.}}{18}{table.caption.28}%
 \addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Table 1. Divergence Comparison}}{33}{table.caption.69}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 

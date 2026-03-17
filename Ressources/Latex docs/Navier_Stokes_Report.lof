@@ -1,7 +1,13 @@
 \babel@toc {english}{}\relax 
 \addvspace {10\p@ }
+\contentsline {figure}{\numberline {1.1}{\ignorespaces \textbf {Figure 1. Rayleigh-B\'{e}nard Convection (Chang, n.d.)}}}{4}{figure.caption.6}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Comparison of analytical and numerical solutions in advection test.}}{30}{figure.caption.61}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces Initial Flow Field.}}{31}{figure.caption.62}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces Divergence field in the Jacobi method. Max Divergence $= 5.55 \times 10^{-2}$.}}{32}{figure.caption.67}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces Achieving divergence error at machine precision accuracy using FFT solver.}}{32}{figure.caption.68}%
+\contentsline {figure}{\numberline {3.5}{\ignorespaces Rayleigh-B\'{e}nard Diagnostics.}}{34}{figure.caption.70}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 

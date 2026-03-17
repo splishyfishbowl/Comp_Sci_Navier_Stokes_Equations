@@ -374,7 +374,7 @@ Combining both cases yields the general stability condition
 $$\left|a\frac{\Delta t}{\Delta x}\right| \leq 1,$$ 
 which is the CFL condition for the upwind scheme.
 
-\subsection{Two-Dimensional Upwind Scheme with Operator Splitting}
+\subsection{Two-Dimensional Upwind Scheme with Operator Splitting}\label{2DUpwind}
 Now we jointly apply operator splitting with the upwind finite difference
 method for the two-dimensional advection equation. We define $u_{ij}^n
 := u(t^n, y_i, z_i)$ and assume an equidistant spatial grid. The spacings
@@ -432,161 +432,401 @@ entire computational domain.
 \todo{boundary conditions implementation}
 \newpage
 
-\section{Incompressible Flow - Chorin's Projection Method}\label{Chorins}
+\section{Incompressible Flow}\label{Chorins}
 
-We now consider the Navier-Stokes equations for velocity field
+\subsection{Problem Setup}
+
+We consider the incompressible Navier--Stokes equations for velocity field $\mathbf{u} = (v,w)$ and pressure $p$,
 \begin{align}
-    \partial_t \textbf{u} + \textbf{u} \cdot \nabla \textbf{u} 
-    + \frac{1}{\rho}\nabla p &= \nu \Delta \textbf{u}  \quad \quad 
-    \text{with } \beta = 0 \\
-    \nabla \cdot \textbf u &= 0  
+    \partial_t \mathbf{u} + (\mathbf{u} \cdot \nabla)\mathbf{u}
+        + \frac{1}{\rho}\nabla p
+        &= \nu \,\Delta \mathbf{u}, \label{eq:momentum} \\
+    \nabla \cdot \mathbf{u} &= 0, \label{eq:incompressibility} 
 \end{align}
+where $\rho$ is the fluid density and $\nu$ the kinematic viscosity. The buoyancy parameter $\beta$ is set to zero throughout this section, so that~\eqref{eq:momentum} describes a purely viscous incompressible flow without external forcing.
 
-The boundary conditions are given by
+The computational domain is the two-dimensional rectangle $\Omega = [0, L_y) \times [0, L_z]$. The $y$ direction is periodic and the $z$ direction is wall-bounded, reflecting a channel-like geometry.
+
+\paragraph{Periodicity in $y$.}
+The velocity field satisfies
+\begin{equation}
+    \mathbf{u}(t, 0, z) = \mathbf{u}(t, L_y, z)
+    \qquad \forall\, t \geq 0,\ z \in [0, L_z],
+\end{equation}
+so that the domain wraps around in $y$ and no boundary treatment is required in that direction. 
+
+\paragraph{Wall conditions at $z = 0$ and $z = L_z$.}
+Two conditions are imposed on each solid wall. First, no fluid may penetrate the boundary (\textit{no-penetration}):
+\begin{equation}
+    w(t, y, 0) = w(t, y, L_z) = 0
+    \qquad \forall\, t \geq 0,\ y \in [0, L_y).
+    \label{eq:no-penetration}
+\end{equation}
+Second, the tangential component $v$ is subject to a \textit{free-slip} condition,
+\begin{equation}
+    \left.\frac{\partial v}{\partial z}\right|_{z=0,\,L_z} = 0,
+    \label{eq:free-slip}
+\end{equation}
+
+allowing the flow to move freely parallel to the wall without friction while exerting no viscous shear stress on it. 
+Numerically,~\eqref{eq:free-slip} is enforced via a ghost-cell extrapolation: the value of $v$ at each wall is node is set equal to the value at the adjacent interior node.
+
+\subsection{Initial Conditions}\label{sec:ic}
+
+For projection methods, it is advantageous to begin with an initial velocity field that is analytically divergence-free. If the initial condition contains a large divergence, the first projection step must remove it, which can introduce sizable error into the velocity and pressure fields. Therefore, to avoid this issue, we initialize the flow with velocity fields that satisfy $\nabla\cdot\mathbf{u}_0 = 0$. The built-in modes take the form
 \begin{align}
-\textbf u (t,0,z) &= \textbf u (t,1,z)\\
-\textbf w (t,y,0) &= \textbf w (t,y,1)=0 \quad \quad \forall t 
-\in [0, t_{end}], (y,z)\in \Omega
+    v_0(y,z) &= \sin(n_y k_y y)\cos(n_z k_z z), \label{eq:ic_v} \\
+    w_0(y,z) &= -\frac{n_y k_y}{n_z k_z}\cos(n_y k_y y)\sin(n_z k_z z),
+    \label{eq:ic_w}
 \end{align}
+where $k_y = 2\pi/L_y$ and $k_z = \pi/L_z$ are the fundamental wavenumbers in each direction, and $n_y, n_z \in \mathbb{Z}^+$ select the mode numbers. 
 
-To solve this differential equation, we employ a \textit{projection
-method}.\todo{explain why we use a projection method} Conceptually, this
-projection method splits the computation into two steps:
-\begin{enumerate}
-    \item{Compute an intermediate velocity that does not necessarily
-    satisfy the incompressibility constraint ($ \nabla \cdot \textbf u
-    = 0$). This intermediate velocity is computed at each time step
-    (ignoring the pressure term)}
-    \item{Use the pressure $p$ to \textit{project} the intermediate
-    velocity onto the space of divergence-free velocity fields.}
-\end{enumerate}
+\paragraph{Divergence-free condition.}
+Taking the divergence of \eqref{eq:ic_v}--\eqref{eq:ic_w} gives 
+\begin{equation}
+    \partial_y v_0 + \partial_z w_0
+\end{equation}
+\begin{equation}
+    = n_y k_y \cos(n_y k_y y)\cos(n_z k_z z)
+    - n_y k_y \cos(n_y k_y y)\cos(n_z k_z z) = 0,
+\end{equation}
+so $\nabla\cdot\mathbf{u}_0 = 0$ holds pointwise throughout the domain.
 
-Formally, the scheme reads
+\paragraph{Boundary conditions.}
+The choice of $k_z = \pi/L_z$ places a node of $\sin(n_z k_z z)$ at both $z = 0$ and $z = L_z$ for every $n_z \in \mathbb{Z}^+$ so
+\begin{equation}
+    w_0(y, 0) = w_0(y, L_z) = 0 \quad \forall\, y,
+\end{equation}
+and the no-penetration wall condition is satisfied by construction. The periodicity in the $y$ direction is automatically satisfied by the sinusoidal dependence.
 
-\begin{enumerate}
-    \item Compute the intermediate velocity{$$\frac{\textbf u^*-\textbf
-    u^n}{\Delta t} = - (\textbf u^n \cdot \nabla)\textbf u^n + \nu
-    \nabla^2 \textbf u^n $$}
-    \item Correct the velocity using the pressure {$$\frac{\textbf u^{n+1}
-    -\textbf u^*}{\Delta t} = -\frac{1}{\rho} \nabla p^{n+1}$$} 
-\end{enumerate}
-There are things to note from this procedure. Firstly, the pressure $p$ is
-time-invariant. This means that pressure $p$ is not affected by our
-timestep $\Delta t$. Secondly, we can summarize that this procedure is a
-kind of operator splitting.
-
-This velocity vector, however, is not complying with our constraint of
-zero divergence. Additionally, the solution of the second equation of this
-scheme requires knowledge about $p$. We therefore rewrite the second
-equation as
-$$\textbf u^{n+1}=\textbf u^* - \frac{\Delta t}{\rho}\nabla p^{n+1}$$
-
-Ensuring the absence of divergence $(\nabla \textbf u^{n+1}=0)$ allows us
-to further extend this equation:
+\paragraph{Implemented modes.}
+The implemented modes are summarized in Table~\ref{tab:icmodes}. The \texttt{double} mode is the linear superposition
 \begin{align}
-\textbf u^{n+1} & =\textbf u^* - \frac{\Delta t}{\rho}\nabla p^{n+1} \\
-\text{respecting divergence} \quad 0 &= \nabla \textbf u^* -
-\frac{\Delta t}{\rho}\nabla^2 p^{n+1} \\
-\Rightarrow \Delta p^{n+1}&= \frac{\rho}{\Delta t}(\nabla \textbf u^*)
+    v_0 &= \sin(k_y y)\cos(k_z z) + \sin(2k_y y)\cos(k_z z), \\
+    w_0 &= -\frac{k_y}{k_z}\cos(k_y y)\sin(k_z z)
+           -\frac{2k_y}{k_z}\cos(2k_y y)\sin(k_z z),
 \end{align}
-The latter result is the Poisson equation for pressure.
+which is divergence-free by linearity. The solver also accepts a
+\texttt{custom} mode in which the user supplies arbitrary functions
+$v_0(y,z)$ and $w_0(y,z)$ directly. In this case, the user is
+responsible for ensuring that the supplied field satisfies
+$\nabla\cdot\mathbf{u}_0 = 0$ and the wall boundary conditions.
 
-We can see that the method is called a \textit{projection} because we
-decompose $\textbf u^*$ into a divergence-free (solenoidal) part $\textbf
-u_{sol}$ and irraotational part $\textbf u_{irrot}$. With the projection
-step, $\textbf u_{irrot}=\nabla \phi$ is removed to ensure the remaining
-part is negative divergence-free.
-
-$$\textbf u = \textbf u_{\text{sol}}+\textbf u_{\text{irrot}}= 
-\textbf u_{\text{sol}}+\nabla \phi $$
-
-Since $\nabla \textbf u_{\text{sol}}=0$, the expression simplifies when w
-e calculate the divergence of the total expression:
-$$\Delta \textbf u = \Delta \phi $$
-
-Here, $\Delta = \nabla^2$ represents the Laplacian operator. Consequently,
-the solenoidal part can be calculated as  $\textbf u_{\text{sol}}
-=\textbf u - \nabla \phi$.
-
-This projection method is called \textit{Helmholtz-Hodge decomposition}.
-
-We once again consider the Poisson equation:
-$$\Delta p = \frac{\rho}{\Delta t}(\nabla \textbf u ^*) 
-\quad \text{in the domain } \Omega =[0,1]^2$$
-
-Assuming Neumann boundary conditions, 
-$$\frac{\partial p}{\partial \textbf n}=0 \Leftrightarrow \nabla p \cdot 
-\textbf n = 0 \quad \text{on }\partial \Omega$$
-
-With these boundary conditions, we derive a solution that is not unique,
-as $p$ is defined up to an additive constant. To solve the Poisson
-equation, we equidistantly discretize the spatial domain.
-$$y_i = i \Delta y \quad i=0,...,N_{y}-1$$
-$$ z_j = j \Delta z \quad j=0,...,N_z -1$$
-
-The Laplacian operator is approximated using the second-order finite
-difference stencil
-$$\Delta p = \nabla^2 p = \frac{\partial ^2 p}{\partial y^2}+
-\frac{\partial^2 p}{\partial z^2} \approx 
-\frac{p_{i+1,j}-2p_{i,j}+p_{i-1,j}}{\Delta y^2}+ 
-\frac{p_{i,j+1}-2p_{i,j}+p_{i,j-1}}{\Delta z^2}$$
-
-\subsection{Discretized Poisson Equation}
-
-We now substitute the discretized Laplace operator into our Poisson
-equation.
-$$ \Delta p^{n+1}= \frac{rho}{\Delta t}(\nabla \textbf u^*) $$
-Using the finite difference approximation of the Laplacian yields
-$$-2(\frac{1}{\Delta y^2}+\frac{1}{\Delta z^2})p_{i,j}
-+\frac{p_{i+1,j}+p_{i-1,j}}{\Delta y^2}+\frac{p_{i,j+1}+p_{i,j-1}}
-{\Delta z^2}=\frac{\rho}{\Delta t}(\nabla \textbf u^*)_{i,j}$$
-
-\todo{this is FFT now?}
-To ensure that our numerical solution respects the boundary conditions, we
-approximate derivatives using a central finite difference scheme
-$$ f'_i \approx \frac{f_{i+1}-f_{i-1}}{2 \Delta x} $$
-Each boundary of the domain then corresponds to a numerical constraint,
-summarized in Table~\ref{tab:boundaryconditions}. 
-
-\begin{table}\label{tab:boundaryconditions}
+\begin{table}[h]
 \begin{center}
-\begin{tabular}{l c c c}
+\begin{tabular}{l c c}
     \hline
-    \textbf{Boundary} & \textbf{BC} & \textbf{numerical BC} & 
-    \textbf{Resulting condition}\\
+    \textbf{Mode} & $n_y$ & $n_z$ \\
+    \hline\hline
+    \texttt{mode1}  & 1 & 1 \\
+    \texttt{mode2}  & 2 & 1 \\
+    \texttt{mode3}  & 1 & 2 \\
+    \texttt{double} & \multicolumn{2}{c}{superposition of \texttt{mode1} and \texttt{mode2}} \\
     \hline
-    \hline 
-    $\text{Bottom} (z=0,j=0)$ & $\frac{\partial p}{\partial z}=0$ 
-    & $\frac{p_{i,1}-p_{i,-1}}{2\Delta z}=0$ & $p_{i,1}=p_{i,-1}$ \\
-    $\text{Top} (z=1,j=N_z-1) $& $\frac{\partial p}{\partial z}=0$
-    & $\frac{p_{i,N_z}-p_{i,-2}}{2\Delta z}=0$ & $p_{i,N_z}=p_{i,N_z-2}$ \\
-    $\text{Left} (y=0,i=0)$ & $\frac{\partial p}{\partial y}=0$
-    & $\frac{p_{1,j}-p_{-1,j}}{2\Delta z}=0$ & $p_{1,j}=p_{-1,j}$ \\
-    $\text{Right} (y=1,i=N_y-1) $ & $\frac{\partial p}{\partial y}=0$
-    & $\frac{p_{N_y,j}-p_{N_y-2,j}}{2\Delta z}=0$ 
-    & $p_{N_y,j}=p_{N_y-2,j}$ \\
 \end{tabular}
-\caption{\textbf{Dsicretized Boundary Conditions (BC)} Boundary conditions
-for the four boundaries of the two-dimensional domain $\Omega = [0,1]^2$.
-Each row shows the analytical boundary condition, its numerical
-approximation, and the resulting condition for the discrete pressure
-field.}
+\caption{\textbf{Initial condition modes.} Each built-in mode is
+characterized by its $y$- and $z$-wavenumber multipliers $(n_y, n_z)$.
+The \texttt{double} mode is the linear superposition of \texttt{mode1}
+and \texttt{mode2}; the \texttt{custom} mode accepts user-supplied
+velocity functions.}
+\label{tab:icmodes}
 \end{center}
 \end{table}
 
-\subsection{Numerical Procedure}
-To summarize, the numerical procedure is given by the following steps:
+\subsection{Time Step Selection}
+
+Because the predictor step uses an explicit time discretization for both advection and diffusion, the time step $\Delta t$ must satisfy stability conditions imposed by each operator independently. The overall time step is chosen as
+\begin{equation}
+    \Delta t = \alpha \min\!\left(\Delta t_{\mathrm{adv}},\,
+    \Delta t_{\mathrm{diff}}\right),
+    \label{eq:dt}
+\end{equation}
+where $\alpha \in (0,1)$ is a safety factor (set to $\alpha = 0.4$ in our implementation) and $\Delta t_{\mathrm{adv}}$, $\Delta t_{\mathrm{diff}}$ are the stability limits from advection and diffusion, respectively.
+
+\paragraph{Advection limit (CFL condition).}
+For first-order upwind advection on a uniform grid, the
+Courant--Friedrichs--Lewy (CFL) condition requires
+\begin{equation}
+    \frac{\max|\mathbf{u}|\,\Delta t}{\Delta x} \leq 1
+\end{equation}
+in each spatial direction. Applying this to both the $y$- and
+$z$-directions gives the advective time step limit
+\begin{equation}
+    \Delta t_{\mathrm{adv}} = \min\!\left(
+        \frac{\Delta y}{\max|v|},\;
+        \frac{\Delta z}{\max|w|}
+    \right),
+    \label{eq:dt_adv}
+\end{equation}
+where $\max|v|$ and $\max|w|$ denote the global maxima of the velocity
+magnitudes over the entire domain at the current time level. A small
+floor value is applied to each velocity maximum before division to
+prevent division by zero in the case of a quiescent initial field.
+
+\paragraph{Diffusion limit (von Neumann condition).}
+For the explicit discretization of the diffusion term $\nu\Delta
+\mathbf{u}$, stability requires that the diffusive CFL number remain
+bounded. On a two-dimensional uniform grid this yields the von Neumann
+stability condition
+\begin{equation}
+    \Delta t_{\mathrm{diff}} \leq \frac{1}{2\nu}
+    \left(\frac{1}{\Delta y^2} + \frac{1}{\Delta z^2}\right)^{-1},
+    \label{eq:dt_diff}
+\end{equation}
+which is independent of the velocity field and depends only on the
+kinematic viscosity $\nu$ and the grid spacings.
+
+\paragraph{Combined condition.}
+The time step \eqref{eq:dt} takes the minimum of both limits and
+scales it by the safety factor $\alpha$, ensuring a margin against
+the onset of instability as the velocity field evolves. At each time
+step, the CFL numbers
+\begin{equation}
+    C_y = \frac{\max|v|\,\Delta t}{\Delta y}, \qquad
+    C_z = \frac{\max|w|\,\Delta t}{\Delta z}
+\end{equation}
+are monitored, and a warning is issued if either exceeds 1.
+Note that $\Delta t$ is computed once from the initial velocity field
+and held fixed throughout the simulation; it is not recomputed
+adaptively at each step.
+
+\subsection{Chorin's Projection Method}
+We consider again the incompressible Navier--Stokes equations
+\begin{align}
+    \partial_t \mathbf{u} + \mathbf{u} \cdot \nabla \mathbf{u}
+    + \frac{1}{\rho}\nabla p &= \nu \Delta \mathbf{u}
+    \qquad (\beta = 0), \label{eq:ns_mom} \\
+    \nabla \cdot \mathbf{u} &= 0, \label{eq:ns_div}
+\end{align}
+on the domain $\Omega = [0, L_y] \times [0, L_z]$, subject to periodic
+boundary conditions in $y$ and no-penetration / free-slip conditions at
+the walls $z = 0$ and $z = L_z$.
+To solve this system, we employ Chorin's \textit{projection
+method}, which decouples the velocity update from the pressure solve by splitting the computation into three steps at each timestep:
 \begin{enumerate}
-    
-    \item{Solve $\frac{\textbf u^*-\textbf u^n}{\Delta t} 
-    = -(\textbf u^n\cdot \nabla)\cdot \textbf u^n + \nu \Delta
-    \textbf n^n$} using a suitable integrator scheme 
-    \item{Compute pressure $p$ by solving the discretized Poisson
-    equation}
-    \item{Solve $\frac{\textbf u^{n+1}-\textbf u^*}{\Delta t}
-    =-\frac{1}{\rho}\nabla p$ and obtain $\textbf u^{n+1}$}
-    
+    \item \textbf{Predictor Step} — advance the momentum equation without the
+          pressure gradient to obtain an intermediate velocity
+          $\mathbf{u}^*$, which is generally not divergence-free.
+    \item \textbf{Pressure Poisson Equation} — compute the pressure correction $p$
+          by solving a Poisson equation derived from the incompressibility
+          constraint.
+    \item \textbf{Projection Step} — correct $\mathbf{u}^*$ using $\nabla p$
+          to recover a divergence-free velocity $\mathbf{u}^{n+1}$.
 \end{enumerate}
+This procedure is a form of operator splitting. The nonlinear advection,
+diffusion, and incompressibility constraint are each treated in a
+dedicated sub-step rather than simultaneously.
+
+\subsubsection{Predictor Step}
+The predictor step advances the momentum equation over one time step $\Delta t$, while temporarily ignoring the pressure gradient. The intermediate velocity $\mathbf{u}^* = (v^*, w^*)$ is obtained from the explicit Euler discretization
+\begin{equation}
+    \mathbf{u}^* = \mathbf{u}^n + \Delta t\Bigl[
+        -(\mathbf{u}^n \cdot \nabla)\mathbf{u}^n
+        + \nu\,\Delta\mathbf{u}^n
+    \Bigr],
+    \label{eq:predictor}
+\end{equation}
+or written componentwise,
+\begin{align}
+    v^* &= v^n - \Delta t\!\left(
+               v^n\frac{\partial v^n}{\partial y}
+             + w^n\frac{\partial v^n}{\partial z}
+           \right) + \Delta t\,\nu\,\Delta v^n, \label{eq:pred_v} \\
+    w^* &= w^n - \Delta t\!\left(
+               v^n\frac{\partial w^n}{\partial y}
+             + w^n\frac{\partial w^n}{\partial z}
+           \right) + \Delta t\,\nu\,\Delta w^n. \label{eq:pred_w}
+\end{align}
+The right-hand side of \eqref{eq:predictor} is split into an advection
+contribution and a diffusion contribution, each treated separately.
+
+\paragraph{Advection.}
+The advection terms in \eqref{eq:pred_v}--\eqref{eq:pred_w} are
+discretized using the operator-split first-order upwind scheme described
+in Section~\ref{2DUpwind}. The two velocity components $v$ and $w$ are
+each advected by the full velocity field $\mathbf{u}^n = (v^n, w^n)$,
+with the $y$-sweep applied first, followed by the $z$-sweep:
+\begin{align}
+    v_{\mathrm{adv}} &= A_z(\Delta t)\,A_y(\Delta t)\,v^n, \\
+    w_{\mathrm{adv}} &= A_z(\Delta t)\,A_y(\Delta t)\,w^n,
+\end{align}
+where $A_y$ and $A_z$ denote the one-dimensional upwind operators in
+the $y$- and $z$-directions respectively.
+
+\paragraph{Diffusion.}
+The diffusion increment is evaluated on the \emph{original} velocity
+field $\mathbf{u}^n$, not on the intermediate advected field
+$\mathbf{u}_{\mathrm{adv}}$. This is consistent with an explicit Euler
+splitting in which advection and diffusion are treated as independent
+operators acting on the same base state. The intermediate velocity is
+then assembled as
+\begin{align}
+    v^* &= v_{\mathrm{adv}} + \Delta t\,\nu\,\Delta v^n, \\
+    w^* &= w_{\mathrm{adv}} + \Delta t\,\nu\,\Delta w^n,
+\end{align}
+where $\Delta$ denotes the discrete Laplacian.
+
+\paragraph{Boundary conditions.}
+Wall boundary conditions are enforced at two points during the
+predictor step. They are first applied to $\mathbf{u}^n$ before any
+stencil evaluation, ensuring that the finite-difference operators
+see a consistent velocity field at the boundaries. They are then
+re-applied to $\mathbf{u}^*$ after the advection and diffusion
+increments have been added, correcting any boundary values that
+may have been corrupted by the interior stencils. Specifically,
+the no-penetration condition $w^* = 0$ and free-slip condition
+$\partial_z v^* = 0$ are enforced at $z = 0$ and $z = L_z$.
+
+\subsubsection{Pressure Poisson Equation}
+Given the intermediate velocity $\mathbf{u}^*$ from the predictor step,
+the right-hand side of the Poisson equation is assembled as
+\begin{equation}
+    f = \frac{\rho}{\Delta t}\,\nabla \cdot \mathbf{u}^*,
+    \label{eq:poisson_rhs}
+\end{equation}
+The pressure field $p$ is then obtained by solving
+\begin{equation}
+    \Delta p = f \quad \text{in } \Omega,
+    \label{eq:poisson_full}
+\end{equation}
+subject to Neumann conditions $\partial p / \partial \mathbf{n} = 0$
+at the walls $z = 0$ and $z = L_z$, periodic conditions in $y$, and the
+zero-mean gauge $\langle p \rangle = 0$.
+
+\paragraph{Compatibility Condition.}
+The Neumann problem \eqref{eq:poisson_full} admits a solution only if
+the right-hand side satisfies the compatibility condition
+\begin{equation}
+    \int_\Omega f \, \mathrm{d}\Omega = 0.
+    \label{eq:compatibility}
+\end{equation}
+This is enforced numerically by subtracting the spatial mean of $f$
+before solving, replacing $f$ with $f - \langle f \rangle$.
+
+\paragraph{Spectral Diagonalization.}
+The Poisson equation is solved using a spectral direct solver that
+exploits the structure of the boundary conditions in each direction. In
+the periodic $y$-direction, the discrete operator is diagonalized by the
+Fast Fourier Transform (FFT). In the wall-bounded $z$-direction, the
+Neumann boundary conditions are compatible with the Discrete Cosine
+Transform of type I (DCT-I), which diagonalizes the corresponding
+Neumann Laplacian stencil. Applying both transforms to
+\eqref{eq:poisson_full} yields a decoupled system of algebraic equations
+in spectral space,
+\begin{equation}
+    \left(\lambda^y_k + \lambda^z_m\right)\hat{P}_{k,m} = \hat{F}_{k,m},
+    \label{eq:poisson_spectral}
+\end{equation}
+where $\hat{P}_{k,m}$ and $\hat{F}_{k,m}$ are the spectral coefficients
+of $p$ and $f$ respectively, and the eigenvalues of the discrete
+Laplacian are
+\begin{align}
+    \lambda^y_k &= \frac{2}{\Delta y^2}
+        \left(\cos\frac{2\pi k}{N_y} - 1\right),
+        \quad k = 0, \ldots, N_y - 1,
+        \label{eq:eig_y} \\
+    \lambda^z_m &= \frac{2}{\Delta z^2}
+        \left(\cos\frac{\pi m}{N_z - 1} - 1\right),
+        \quad m = 0, \ldots, N_z - 1.
+        \label{eq:eig_z}
+\end{align}
+These eigenvalues are the exact eigenvalues of the second-order
+central-difference operators in each direction: \eqref{eq:eig_y}
+corresponds to the periodic tridiagonal stencil on $N_y$ points, and
+\eqref{eq:eig_z} corresponds to the Neumann-reflected tridiagonal
+stencil on $N_z$ points with endpoints included.
+
+\paragraph{Gauge Fix and Inversion.}
+The $(k,m) = (0,0)$ mode corresponds to $\lambda^y_0 + \lambda^z_0 = 0$,
+so \eqref{eq:poisson_spectral} is singular for this mode. Physically,
+this reflects the fact that the Neumann problem determines $p$ only up
+to an additive constant. The zero mode is handled by setting
+$\hat{P}_{0,0} = 0$, which enforces the zero-mean gauge
+$\langle p \rangle = 0$. All other modes are inverted as
+\begin{equation}
+    \hat{P}_{k,m} = \frac{\hat{F}_{k,m}}{\lambda^y_k + \lambda^z_m},
+    \quad (k,m) \neq (0,0).
+    \label{eq:poisson_invert}
+\end{equation}
+The pressure field is then recovered by applying the inverse DCT-I in
+$z$ followed by the inverse FFT in $y$. A final subtraction of the
+spatial mean is applied to enforce $\langle p \rangle = 0$ to
+floating-point precision.
+
+\paragraph{Treatment of complex transforms.}
+Because the right-hand side $f$ is real-valued, the FFT in $y$ produces
+complex coefficients. Since the scipy DCT implementation operates on
+real arrays only, the DCT-I is applied separately to the real and
+imaginary parts of the FFT output, and the results are recombined before
+inversion. The imaginary part of the final result is discarded, as it
+arises only from floating-point rounding.
+
+\subsubsection{Projection Step}
+Given the pressure field $p$ obtained from solving the Poisson equation, the intermediate velocity $\mathbf{u}^*$ is
+corrected by removing its irrotational component. The corrected
+velocity at the new time level is
+\begin{equation}
+    \mathbf{u}^{n+1} = \mathbf{u}^* - \frac{\Delta t}{\rho}\nabla p.
+    \label{eq:projection}
+\end{equation}
+Evaluating \eqref{eq:projection} componentwise gives
+\begin{align}
+    v^{n+1} &= v^* - \frac{\Delta t}{\rho}\frac{\partial p}{\partial y},
+    \label{eq:proj_v} \\
+    w^{n+1} &= w^* - \frac{\Delta t}{\rho}\frac{\partial p}{\partial z}.
+    \label{eq:proj_w}
+\end{align}
+Both partial derivatives of $p$ are computed using the
+central-difference gradient operator, with Neumann ghost cells
+($p_{i,0} = p_{i,1}$, $p_{i,N_z-1} = p_{i,N_z-2}$) applied at the
+walls to enforce $\partial p / \partial z = 0$ there, and periodic
+differences via \texttt{np.roll} in the $y$-direction.
+
+To verify that \eqref{eq:proj_v}--\eqref{eq:proj_w} enforces
+incompressibility, take the divergence of \eqref{eq:projection}:
+\begin{equation}
+    \nabla \cdot \mathbf{u}^{n+1}
+    = \nabla \cdot \mathbf{u}^*
+    - \frac{\Delta t}{\rho} \Delta p.
+\end{equation}
+Substituting the Poisson equation,
+$\Delta p = (\rho / \Delta t)\,\nabla\cdot\mathbf{u}^*$, yields
+\begin{equation}
+    \nabla \cdot \mathbf{u}^{n+1}
+    = \nabla \cdot \mathbf{u}^*
+    - \nabla \cdot \mathbf{u}^* = 0,
+\end{equation}
+so $\mathbf{u}^{n+1}$ is divergence-free to within the accuracy of
+the Poisson solver. In practice, the residual divergence
+$\|\nabla\cdot\mathbf{u}^{n+1}\|_\infty$ is monitored at each step
+as a convergence diagnostic.
+
+\subsection{Summary}
+The complete numerical procedure at each time step $t^n \to t^{n+1}$
+is as follows:
+\begin{enumerate}
+    \item \textbf{Predictor.} Solve
+          \begin{equation*}
+              \mathbf{u}^* = \mathbf{u}^n + \Delta t\bigl[
+              -(\mathbf{u}^n\cdot\nabla)\mathbf{u}^n
+              + \nu\Delta\mathbf{u}^n\bigr],
+          \end{equation*}
+          using operator-split upwind advection followed by explicit
+          diffusion. Apply wall boundary conditions to $\mathbf{u}^*$.
+    \item \textbf{Poisson solve.} Compute
+          $\nabla\cdot\mathbf{u}^*$ and solve
+          \begin{equation*}
+              \Delta p = \frac{\rho}{\Delta t}\,\nabla\cdot\mathbf{u}^*
+          \end{equation*}
+          via the spectral direct solver, enforcing zero mean pressure.
+    \item \textbf{Projection.} Correct the velocity,
+          \begin{equation*}
+              \mathbf{u}^{n+1} = \mathbf{u}^*
+              - \frac{\Delta t}{\rho}\nabla p,
+          \end{equation*}
+          and apply wall boundary conditions to $\mathbf{u}^{n+1}$.
+\end{enumerate}
+
 \section{Rayleigh--Bénard convection}
 So far we have neglected any forcing in the velocity equation of the
 Navier-Stokes system. In this section, we introduce thermal forcing in

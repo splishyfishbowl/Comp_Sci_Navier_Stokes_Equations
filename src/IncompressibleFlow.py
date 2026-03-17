@@ -524,7 +524,6 @@ def run_tests(ic_mode="mode1", ic_custom_v=None, ic_custom_w=None):
     p_exact = np.cos(ky*Y) * np.cos(kz*Z)
     p_exact -= p_exact.mean()
     rhs_test = laplacian(p_exact) # discrete rhs consistent with the solver
-    p_init   = np.zeros_like(p_exact)
     p_solved = pressure_poisson(rhs_test)
     err_p = np.max(np.abs(p_solved - p_exact))
     print(f"[Test 3] Poisson solver error = {err_p:.3e} (expect < 1e-3)")

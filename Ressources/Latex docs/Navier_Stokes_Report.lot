@@ -1,9 +1,8 @@
 \babel@toc {english}{}\relax 
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {2.1}{\ignorespaces \textbf {Initial condition modes.} Each built-in mode is characterized by its $y$- and $z$-wavenumber multipliers $(n_y, n_z)$. The \texttt {double} mode is the linear superposition of \texttt {mode1} and \texttt {mode2}; the \texttt {custom} mode accepts user-supplied velocity functions.}}{18}{table.caption.28}%
+\contentsline {table}{\numberline {2.1}{\ignorespaces Initial condition modes}}{17}{table.caption.21}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {3.1}{\ignorespaces Table 1. Divergence Comparison}}{33}{table.caption.69}%
-\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Divergence Comparison}}{28}{table.caption.49}%
 \addvspace {10\p@ }
 \providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 

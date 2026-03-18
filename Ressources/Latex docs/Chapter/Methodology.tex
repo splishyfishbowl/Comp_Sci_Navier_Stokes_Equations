@@ -1,9 +1,7 @@
 \chapter{Methodology}
 
 
-\section{First task}
-\subsection{Model}
-\subsection{Operator Splitting}
+section{Operator Splitting}
 
 Consider a typical partial differential equation (PDE) of the form
 $$ \partial_t \bm{u} = (A + B + C)\bm{u}. $$
@@ -97,10 +95,8 @@ As previously mentioned, this algorithm relies on the assumption that for
 small timesteps $\Delta t$, only small difference remains between 
 $u_{k+1,A}$ and $u_{k+1,B}$ when the operators are applied subsequently.
 This algorithm is simple and easy to implement. 
-\todo{include some computational efficiency stuff, maybe even related to
-our testing?}
 However, the global truncation error (GTE) is of order
-$\mathcal{O}(\Delta t)$, \todo{include source} which motivates the
+$\mathcal{O}(\Delta t)$, which motivates the
 development of second-order splitting methods.
 
 \subsubsection{Second Order Operator Splitting (Strang-Splitting)}
@@ -113,7 +109,7 @@ approximated by
         e^{\frac{\Delta t}{2}A} \bm{u}_k
 \end{equation}
 
-\subsection{The Velocity Equation}
+\section{The Velocity Equation}
 We have seen operator splitting for a general problem, and now apply the
 method to the context of the velocity equation from the Navier-Stokes
 equations
@@ -213,7 +209,7 @@ quantities, we can compute the velocity at the next discrete timestep
 while preserving incompressibility. A detailed description of this
 procedure is given in Chapter~\ref{Chorins}.
 
-\subsubsection{Operator splitting for the Velocity Equation}
+\subsection{Operator splitting for the Velocity Equation}
 
 Returning to the operators of the velocity equation, we now apply
 operator splitting for all the different terms.
@@ -251,7 +247,7 @@ We have now obtained an operator splitting for the (linear) advection
 equation. In the next section, we will examine the upward finite
 difference method to solve the resulting equations numerically.
 
-\subsection{Upwind Finite Difference Method}
+\section{Upwind Finite Difference Method}
 To introduce the upwind finite difference method, we consider
 the one-dimensional linear advection equation
 $$\frac{\partial_u}{\partial_t}+a\frac{\partial u}{\partial x}=0.$$
@@ -270,8 +266,7 @@ x_i &:= i \,\Delta x, \quad i = 0,\dots,N \\
 t^n &:= n \,\Delta t
 \end{aligned}
 \]
-\todo{also define discrete no of steps for Time? So maybe $N_x$ and
-$N_t$?}
+
 \begin{enumerate}
     \item{$a > 0$ (backward): $$\partial_x \bm{u} \approx \frac{\bm{u}_i 
     - \bm{u}_{i-1}}{\Delta x} $$}
@@ -335,7 +330,7 @@ A_2 = \begin{pmatrix}
  0 & \dots &  & 0 & \left(1-a\frac{\Delta t}{\Delta x}\right) \\
 \end{pmatrix} $$
 
-\subsubsection*{Stability of the Operators}
+\subsection{Stability of the Operators}
 In general, a matrix operator $A$ is stable if its infinity norm satisfies
 $\|A\|_{\infty} \leq 1$. We investigate both operators $A_1$ 
 (corresponding to the case $a > 0$ and therefore backward finite
@@ -365,7 +360,7 @@ Combining both cases yields the general stability condition
 $$\left|a\frac{\Delta t}{\Delta x}\right| \leq 1,$$ 
 which is the CFL condition for the upwind scheme.
 
-\subsection{Two-Dimensional Upwind Scheme with Operator Splitting}\label{2DUpwind}
+\section{Two-Dimensional Upwind Scheme with Operator Splitting}\label{2DUpwind}
 Now we jointly apply operator splitting with the upwind finite difference
 method for the two-dimensional advection equation. We define $u_{ij}^n
 := u(t^n, y_i, z_i)$ and assume an equidistant spatial grid. The spacings
@@ -420,7 +415,7 @@ In summary, we have implemented operator splitting together with the
 upwind finite difference method for the two-dimensional linear advection
 equation and derived a stability condition that must be satisfied over the
 entire computational domain.
-\todo{boundary conditions implementation}
+
 \newpage
 
 
@@ -463,7 +458,7 @@ Second, the tangential component $v$ is subject to a \textit{free-slip} conditio
 allowing the flow to move freely parallel to the wall without friction while exerting no viscous shear stress on it. 
 Numerically,~\eqref{eq:free-slip} is enforced via a ghost-cell extrapolation: the value of $v$ at each wall is node is set equal to the value at the adjacent interior node.
 
-\subsection{Initial Conditions}\label{sec:ic}
+\section{Initial Conditions}\label{sec:ic}
 
 For projection methods, it is advantageous to begin with an initial velocity field that is analytically divergence-free. If the initial condition contains a large divergence, the first projection step must remove it, which can introduce sizable error into the velocity and pressure fields. Therefore, to avoid this issue, we initialize the flow with velocity fields that satisfy $\nabla\cdot\mathbf{u}_0 = 0$. The built-in modes take the form
 \begin{align}
@@ -516,7 +511,7 @@ $\nabla\cdot\mathbf{u}_0 = 0$ and the wall boundary conditions.
     \texttt{double} & \multicolumn{2}{c}{superposition of \texttt{mode1} and \texttt{mode2}} \\
     \hline
 \end{tabular}
-\caption{\textbf{Initial condition modes.} Each built-in mode is
+\caption[Initial condition modes]{\textbf{Initial condition modes.} Each built-in mode is
 characterized by its $y$- and $z$-wavenumber multipliers $(n_y, n_z)$.
 The \texttt{double} mode is the linear superposition of \texttt{mode1}
 and \texttt{mode2}; the \texttt{custom} mode accepts user-supplied
@@ -525,7 +520,7 @@ velocity functions.}
 \end{center}
 \end{table}
 
-\subsection{Time Step Selection}
+\section{Time Step Selection}
 
 Because the predictor step uses an explicit time discretization for both advection and diffusion, the time step $\Delta t$ must satisfy stability conditions imposed by each operator independently. The overall time step is chosen as
 \begin{equation}
@@ -582,7 +577,7 @@ Note that $\Delta t$ is computed once from the initial velocity field
 and held fixed throughout the simulation; it is not recomputed
 adaptively at each step.
 
-\subsection{Chorin's Projection Method}
+\section{Chorin's Projection Method}
 We consider again the incompressible Navier--Stokes equations
 \begin{align}
     \partial_t \mathbf{u} + \mathbf{u} \cdot \nabla \mathbf{u}
@@ -793,7 +788,7 @@ the Poisson solver. In practice, the residual divergence
 $\|\nabla\cdot\mathbf{u}^{n+1}\|_\infty$ is monitored at each step
 as a convergence diagnostic.
 
-\subsection{Summary}
+\section{Summary}
 The complete numerical procedure at each time step $t^n \to t^{n+1}$
 is as follows:
 \begin{enumerate}
@@ -820,95 +815,106 @@ is as follows:
 \end{enumerate}
 
 
-\section{Rayleigh-Bernard convection}
+% Rayleigh Benard convection
 
-So far we have ignored any forcing in the velocity equation of the Navier-Stokes equation.
-In the following section we want to introduce thermal forcing to reproduce the Rayleigh-Bernard convection cells. 
-Just to name one example, they occur in climatology on different scales and convective phenomena are important in various proccesses all over the global atmospheric system.
-In this section we want to find adequate initial conditions and parameters to reproduce such a convective behaviour using our solutions.
 
-\subsubsection{Physical parameters}
 
-To start, we once again want to consider the momentum equation. 
-For our problem, we will use the Boussinesq-approximation
+\section{Rayleigh-Benard Convection}
+So far we have ignored any forcing in the velocity equation of the Navier-Stokes equation. In
+the following section we want to introduce thermal forcing to reproduce the Rayleigh-Bernard
+convection cells. Just to name one example, they occur in climatology on different scales and
+convective phenomena are important in various proccesses all over the global atmospheric
+system. In this section, we want to find adequate initial conditions and parameters to
+reproduce such a convective behavior using our solutions.
+\subsection{Physical Model}
+The dynamics of Rayleigh--Bénard convection are governed by the Boussinesq approximation, which assumes that density variations are negligible everywhere except in the buoyancy term, where they drive fluid motion. Under this approximation, the system is described by three coupled governing equations. 
 
-\todo{explain Boussinesq-approximation}.
+The temperature field evolves according to the advection--diffusion equation:
+\begin{equation}
+\partial_t T + \mathbf{u} \cdot \nabla T = \Delta T .
+\end{equation}
 
-\subsubsection{Boussinesq Approximation}
-Accourding to the Boussinesq approximation we can simplify the flows driven by temperature differences (natural convection). It indicates that density changes are ignored in most parts of the equations such as inertia terms, etc. However, density changes are only considered in the gravity term to calculate the buoyancy term. We are allowed to consider such an assumption if the temperature differences in the fluid are relatively small, The variation in density is much smaller than the mean density; and when the flow velocity is low, with the Mach number less than 0.3. In other circumstances, we are not permitted to assume the Boussinesq approximation.
+The momentum equation including buoyancy is given by:
+\begin{equation}
+\partial_t \mathbf{u} + (\mathbf{u} \cdot \nabla)\mathbf{u} + \frac{1}{\rho}\nabla p
+= \nu \Delta \mathbf{u} + \beta T \mathbf{e}_z .
+\end{equation}
 
-This leads to
-$$\partial_t \textbf{u} + (\textbf{u})\cdot \nabla +  \frac{1}{\rho}\nabla p = \nu \nabla \textbf u + T \beta e_z $$
+In addition, the incompressibility condition must be satisfied:
+\begin{equation}
+\nabla \cdot \mathbf{u} = 0 .
+\end{equation}
 
-As we are interested in a certain set of parameters, we briefly want to give some inuitive idea of what the parameters are describing.
-Consider $\nu$ for example:
-If $\nu$ is too high (modelling too much friction), the fluid will remain in a purely conductive state, implying the absense of convective cells.
-The buyoancy parameter $\beta$ is of importance, too. 
-If $\beta$ is too low, then heat will simply diffuse across the fluid instead of creating motion due to located heat forcing.
-We see, that these parameters are essential for a successful recreation of the convective cells.
-While viscosity $\nu$ determines, in how far the fluid is 'allowed' to react to the thermal forcing $beta$ represents the strength of the thermal coupling.
+The onset of convection is determined by the balance between buoyancy forces, viscous damping, and thermal diffusion. This balance is characterized by the Rayleigh number ($Ra$), a dimensionless parameter defined as the ratio of buoyancy driving to the combined effects of viscous damping and thermal diffusion:
+\begin{equation}
+Ra = \frac{\text{Buoyancy Force}}{\text{Viscous Damping} \times \text{Thermal Diffusion}} .
+\end{equation}
 
-In a dimensionless, more general context, the onset of convection is determined by the Rayleigh number.
-In our case, the Rayleigh number is directly proportional to $\frac{\beta}{\nu}$.
-We have to choose $\beta$ large enough (or $\nu$ small) to overcome the internal friction and thermal diffusion of the fluid.
+In this system, the buoyancy coefficient (representing the thermal coupling strength) and the kinematic viscosity (representing momentum damping) play key roles in determining the Rayleigh number. If the Rayleigh number remains below a critical threshold, viscous and diffusive effects dominate and the fluid remains in a purely conductive state. When the Rayleigh number exceeds this critical value, buoyancy overcomes these stabilizing effects and convection cells begin to form.
 
-\subsection{Initial conditions}
-To trigger the desired convection cells we not only are in need of an accurate parameterization.
-We also rely on appropiate initial conditions.
-As symmetry in the initial conditions could hinder the formation of convective cells, we can not start with a perfectly uniform or stratified fluid.
+\subsection{Initial and Boundary Conditions}
+The domain \[\Omega = [0,1]^2\] is periodic in y and wall-bounded in z.
 
-Instead, we are suggesting the following characteristics for the initial conditions in our context.
-Firstly, we want to implement a conductive profile. 
-That means, that we start with a temperature field $T_0(y,z)$ that roughly follows the linear profile $1-z$ (hot at the bottom, cold at the top).
+\textbf{Boundary Conditions}
 
-Secondly, we want to break the symmetry in the velocity field by the introduction of small perturbations.
-We chose random noise that is used to initialize the velocity field $\textbf u_0(y,z)$.
-These perturbations will be amplified by the the buoyancy term $T \beta e_z$ and, if the Rayleigh number is high enough, eventually lead to the emergence of Rayleigh-Bernard convection.
+The temperature boundary conditions are
+\begin{equation}
+T(z=0) = 1, \qquad T(z=1) = 0 .
+\end{equation}
 
-Formally, the described set of initial conditions can be described in the following way.
-On our domain $\Omega=[0,1]^2$ we introduce time-invariant temperatures (constant heating across time):
-In a perfectly still fluid ($\textbf u=0$) the temperature settles into a linear conductivity profile.
-$$T(x,y)= 1-z$$
-This set up implies $T=1$ at $z=0$ (bottom) and $T=0$ at $z=1$ (top).
-Note, that this state satisfies the equilibrium condition meaning 
-$$
-\partial _t T + \textbf u \Delta T = \Delta T
-$$
-where $\Delta T=0$ and $\textbf u \cdot \Delta t=0$.
+The velocity field satisfies the no-penetration and free-slip conditions at the boundaries:
+\begin{equation}
+w = 0, \qquad \frac{\partial v}{\partial z} = 0 .
+\end{equation}
 
-To introduce the mentioned perturbations is the temperature field, we will add noise to these initial conditions.
-$$T=(1-z)+ \epsilon $$
+\textbf{Initial Conditions}
 
-To understand, if such perturbations will grow or vanish, we substitute the temperature field into the momentum equations and linearize them.
-This is performed by dropping nonlinear terms like $\nu \cdot \nabla \epsilon$ or $(\textbf u \cdot \nabla) \textbf u$
+The initial conditions are designed to trigger the transition from a stable, motionless conductive state to organized convective motion in Rayleigh--Bénard convection. This is achieved by combining a steady-state conductive temperature profile with a small perturbation that breaks the symmetry of the system and induces instability.
 
-That is how we obtain the temperature equations
-\begin{align}
-\partial_t + u \cdot \nabla (1-z)&=\Delta \epsilon \\
-\nabla (1-z)&=-e_z \\
-\end{align}
+\textbf{1. Conductive Base State}
 
-This leads to $\textbf u \cdot (1-z) = -w$
-So in total we obtain the linearized heat equation
-$$\partial_t \epsilon = w + \Delta \epsilon$$
+The primary component of the initial temperature field $T_0(y,z)$ is the linear conduction profile. This profile represents the equilibrium state of a purely conductive fluid confined between a hot bottom plate and a cold top plate.
 
-We can see, that a vertical upward motion $w>0$ acts as the source term that increases the local temperature perturbation.
+\textit{Mathematical form:}
+\begin{equation}
+T(z) = 1 - z
+\end{equation}
 
-If we ignore non-linear terms in the momentum equation and split decompose pressure into a static part and perturbation $p'$, the vertical component of the momentum becomes:
-$$\partial_t w + \frac{1}{\rho}\partial_z p' = \nu \Delta w + \epsilon \beta$$
+\textit{Physical significance:}  
+This profile ensures that the temperature satisfies the imposed Dirichlet boundary conditions at the plates. At the initial time, the temperature is $T=1$ at the bottom boundary ($z=0$) and $T=0$ at the top boundary ($z=1$).
 
-Here, $\epsilon \beta $ is the buoyancy force.
-It drives the vertical velocity $w$, which in turn increases the perturbation $\epsilon$.
-Thus, stability is is depending on buoyancy and damping.
+\textbf{2. Symmetry Breaking via Thermal Perturbation}
 
-The perturbations depend on two major forces:
-\begin{enumerate}
-    \item{\textbf{Driving forces}: The buoyancy term ($T\beta e_z$) which amplifies the disturbances as hot fluid is rising.}
-    \item{\textbf{Damping forces}: The viscosity $\nu \Delta \textbf u$ and thermal diffusion $\Delta T$, which act to 'smooth' velocity and temperature gradients.}
-\end{enumerate} 
+A fluid in a perfectly conductive state with no motion will remain static indefinitely unless the equilibrium is disturbed. To initiate the instability that leads to the formation of convective circulation cells, a small thermal perturbation is added to the conductive temperature profile.
 
-In conclusion, we see that the growth rate of the perturbations $\epsilon$ become positive only when the buoyancy term overcomes these damping effects.
-If $\beta $ is too small, diffusion is more important, and the perturbation decays back to the conductive state.
+The perturbed temperature field is defined as
+\begin{equation}
+T = (1 - z) + \epsilon \cos\left(\frac{2\pi y}{L_y}\right)\sin\left(\frac{\pi z}{L_z}\right),
+\end{equation}
+
+where $\epsilon$ is a small perturbation amplitude (typically in the range $0.01$--$0.05$ in the present implementation).
+
+\textit{Boundary compatibility:}  
+The vertical perturbation term $\sin(\pi z / L_z)$ vanishes at the top and bottom plates, ensuring that the imposed temperature boundary conditions remain satisfied.
+
+\textit{Role of the perturbation:}  
+This perturbation introduces small local temperature variations, which create density differences in the fluid. These density variations are acted upon by the buoyancy force term $\beta T \mathbf{e}_z$ in the momentum equation, generating the initial vertical motion that eventually develops into convective circulation cells.
+
+\textbf{3. Initial Velocity and Pressure Fields}
+
+The fluid is initially at rest. Therefore, the velocity components are set to zero throughout the domain:
+\begin{equation}
+v(0,y,z) = 0, \qquad w(0,y,z) = 0 .
+\end{equation}
+
+The pressure field is initialized to zero as a reference gauge:
+\begin{equation}
+p(0,y,z) = 0 .
+\end{equation}
+
+As the simulation begins, the buoyancy force generated by the temperature perturbation produces the first vertical motions in the fluid. These motions grow over time and eventually form the closed circulation patterns characteristic of Rayleigh--Bénard convection.
+
+
 
 \subsection{Solution Strategy}
 

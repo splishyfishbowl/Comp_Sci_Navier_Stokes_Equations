@@ -5,7 +5,11 @@
 \section{Numerical Verification of Advection}
 
 The first task involved testing the Upwind finite difference scheme using a $2D$ advection problem. The numerical results for the velocity components $v$ and $w$ were compared against the analytical solutions. For a $100 \times 100$ grid, we observed a maximum error of approximately $0.38$ for $v$ and $0.42$ for $w$ (See Figure \ref{fig:Introduction}). This level of error is consistent with first-order numerical schemes, which are known for introducing numerical diffusion, causing the profiles to dampen over time.
-
+This dampening can be seen in figure \ref{fig:Introduction}: 
+Local extrema are slightly less pronounced in the numerical solutions (indicated by slightly weaker blue and yellow intensity). 
+Additionally, the transition from extrema to non-extreme locations is 'smoother' in the numerical solutions.
+Vice versa, we can observe sharper color transitions in the analytical solution.
+Although this phenomenon is difficult to spot optically, it indicates the numerical diffusion property.
 \begin{figure}[H]
     
     \centering
@@ -13,6 +17,10 @@ The first task involved testing the Upwind finite difference scheme using a $2D$
     \caption[Comparison of analytical and numerical results]{Comparison of analytical and numerical solutions in advection test.}
     \label{fig:Introduction}
 \end{figure}
+
+Concluding, the implementation of a numerical solver for the linear advection was successful.
+We used operator splitting to enhance computational efficiency and respected the given boundary conditions.
+Nevertheless, we in the next subtask, we had to implement 
 
 \section{Analysis of the Projection Method Step}
 \begin{table}[H]
@@ -76,7 +84,7 @@ Initially, the Jacobi method was used. It starts with an initial pressure guess 
 
 \subsubsection{Fast Fourier Transform (FFT) Method}
 
-In the final version, the Poisson solver was replaced with an FFT-based approach. This method transforms the problem from the spatial domain to the frequency domain, where complex derivatives become simple algebraic divisions.
+In the final version of our implementation, the Poisson solver was replaced with an FFT-based approach. This method transforms the problem from the spatial domain to the frequency domain, where complex derivatives become simple algebraic divisions.
 
 \section{Analysis of Divergence}
 \subsection*{Jacobi method}

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.1.19)  17 MAR 2026 22:14
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.1.19)  19 MAR 2026 09:56
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1266,22 +1266,22 @@ Class scrbook Warning: \float@addtolists detected!
 
 
 {/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}]
-<Images/heat-diffusion2.png, id=99, 543.53062pt x 752.8125pt>
+<Images/heat-diffusion2.png, id=101, 543.53062pt x 752.8125pt>
 File: Images/heat-diffusion2.png Graphic file (type png)
 <use Images/heat-diffusion2.png>
-Package pdftex.def Info: Images/heat-diffusion2.png  used on input line 48.
+Package pdftex.def Info: Images/heat-diffusion2.png  used on input line 49.
 (pdftex.def)             Requested size: 138.7086pt x 192.11972pt.
-<Images/convection2.png, id=101, 553.31718pt x 752.8125pt>
+<Images/convection2.png, id=103, 553.31718pt x 752.8125pt>
 File: Images/convection2.png Graphic file (type png)
 <use Images/convection2.png>
-Package pdftex.def Info: Images/convection2.png  used on input line 52.
+Package pdftex.def Info: Images/convection2.png  used on input line 53.
 (pdftex.def)             Requested size: 138.7086pt x 188.71957pt.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10.95> on input line 53.
-<Images/turbulent3.png, id=102, 539.01375pt x 752.8125pt>
+(Font)              <10.95> on input line 54.
+<Images/turbulent3.png, id=104, 539.01375pt x 752.8125pt>
 File: Images/turbulent3.png Graphic file (type png)
 <use Images/turbulent3.png>
-Package pdftex.def Info: Images/turbulent3.png  used on input line 56.
+Package pdftex.def Info: Images/turbulent3.png  used on input line 57.
 (pdftex.def)             Requested size: 138.7086pt x 193.72789pt.
  [2{/usr/share/texmf/fonts/enc/dvips/lm/lm-rm.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}])
 :<-
@@ -1316,88 +1316,88 @@ Package srcltx Info: Expanded filename `./Chapter/Results' to `./Chapter/Results
 :<+ ./Chapter/Results.tex
 (./Chapter/Results.tex
 chapter 3.
-<Images/velocity.jpeg, id=404, 1075.01625pt x 792.9625pt>
+<Images/velocity.jpeg, id=407, 1075.01625pt x 792.9625pt>
 File: Images/velocity.jpeg Graphic file (type jpg)
 <use Images/velocity.jpeg>
-Package pdftex.def Info: Images/velocity.jpeg  used on input line 12.
+Package pdftex.def Info: Images/velocity.jpeg  used on input line 16.
 (pdftex.def)             Requested size: 416.11876pt x 306.9431pt.
-
-Overfull \hbox (30.6902pt too wide) in paragraph at lines 22--31
- [][][] 
- []
-
 [27
 
 
 
- <./Images/velocity.jpeg>] [28]
+]
+Overfull \hbox (30.6902pt too wide) in paragraph at lines 30--39
+ [][][] 
+ []
+
+[28 <./Images/velocity.jpeg>] [29]
 
 LaTeX Warning: No positions in optional float specifier.
-               Default added (so using `tbp') on input line 51.
+               Default added (so using `tbp') on input line 59.
 
-<Images/incompressible_flow__mode1.png, id=417, 1084.05pt x 289.08pt>
+<Images/incompressible_flow__mode1.png, id=426, 1084.05pt x 289.08pt>
 File: Images/incompressible_flow__mode1.png Graphic file (type png)
 <use Images/incompressible_flow__mode1.png>
-Package pdftex.def Info: Images/incompressible_flow__mode1.png  used on input line 54.
+Package pdftex.def Info: Images/incompressible_flow__mode1.png  used on input line 62.
 (pdftex.def)             Requested size: 508.59586pt x 135.625pt.
-<Images/incompressible_flow__mode2.png, id=418, 1084.05pt x 289.08pt>
+<Images/incompressible_flow__mode2.png, id=427, 1084.05pt x 289.08pt>
 File: Images/incompressible_flow__mode2.png Graphic file (type png)
 <use Images/incompressible_flow__mode2.png>
-Package pdftex.def Info: Images/incompressible_flow__mode2.png  used on input line 57.
+Package pdftex.def Info: Images/incompressible_flow__mode2.png  used on input line 65.
 (pdftex.def)             Requested size: 508.59586pt x 135.625pt.
-<Images/incompressible_flow__mode3.png, id=419, 1084.05pt x 289.08pt>
+<Images/incompressible_flow__mode3.png, id=428, 1084.05pt x 289.08pt>
 File: Images/incompressible_flow__mode3.png Graphic file (type png)
 <use Images/incompressible_flow__mode3.png>
-Package pdftex.def Info: Images/incompressible_flow__mode3.png  used on input line 60.
+Package pdftex.def Info: Images/incompressible_flow__mode3.png  used on input line 68.
 (pdftex.def)             Requested size: 508.59586pt x 135.625pt.
-<Images/incompressible_flow__double.png, id=420, 1084.05pt x 289.08pt>
+<Images/incompressible_flow__double.png, id=429, 1084.05pt x 289.08pt>
 File: Images/incompressible_flow__double.png Graphic file (type png)
 <use Images/incompressible_flow__double.png>
-Package pdftex.def Info: Images/incompressible_flow__double.png  used on input line 63.
+Package pdftex.def Info: Images/incompressible_flow__double.png  used on input line 71.
 (pdftex.def)             Requested size: 508.59586pt x 135.625pt.
 
-Overfull \hbox (46.23854pt too wide) in paragraph at lines 53--65
+Overfull \hbox (46.23854pt too wide) in paragraph at lines 61--73
  [][][] 
  []
 
 
-Overfull \hbox (46.23854pt too wide) in paragraph at lines 53--65
+Overfull \hbox (46.23854pt too wide) in paragraph at lines 61--73
  [] 
  []
 
 
-Overfull \hbox (46.23854pt too wide) in paragraph at lines 53--65
+Overfull \hbox (46.23854pt too wide) in paragraph at lines 61--73
  [] 
  []
 
 
-Overfull \hbox (46.23854pt too wide) in paragraph at lines 53--65
+Overfull \hbox (46.23854pt too wide) in paragraph at lines 61--73
  [] 
  []
 
-[29] [30 <./Images/incompressible_flow__mode1.png> <./Images/incompressible_flow__mode2.png> <./Images/incompressible_flow__mode3.png> <./Images/incompressible_flow__double.png>]
-<Images/JacobianDivergence.png, id=440, 223.5552pt x 172.4844pt>
+<Images/JacobianDivergence.png, id=431, 223.5552pt x 172.4844pt>
 File: Images/JacobianDivergence.png Graphic file (type png)
 <use Images/JacobianDivergence.png>
-Package pdftex.def Info: Images/JacobianDivergence.png  used on input line 88.
+Package pdftex.def Info: Images/JacobianDivergence.png  used on input line 96.
 (pdftex.def)             Requested size: 231.17865pt x 178.37152pt.
-<Images/FinalDivergenceCheck.png, id=442, 408.3255pt x 314.3745pt>
+[30] [31 <./Images/incompressible_flow__mode1.png> <./Images/incompressible_flow__mode2.png> <./Images/incompressible_flow__mode3.png> <./Images/incompressible_flow__double.png>]
+<Images/FinalDivergenceCheck.png, id=450, 408.3255pt x 314.3745pt>
 File: Images/FinalDivergenceCheck.png Graphic file (type png)
 <use Images/FinalDivergenceCheck.png>
-Package pdftex.def Info: Images/FinalDivergenceCheck.png  used on input line 99.
+Package pdftex.def Info: Images/FinalDivergenceCheck.png  used on input line 107.
 (pdftex.def)             Requested size: 277.4172pt x 213.58954pt.
- [31 <./Images/JacobianDivergence.png>]
-<Images/RB_Diagnostics.png, id=450, 874.467pt x 586.1097pt>
+ [32 <./Images/JacobianDivergence.png> <./Images/FinalDivergenceCheck.png>]
+<Images/RB_Diagnostics.png, id=458, 874.467pt x 586.1097pt>
 File: Images/RB_Diagnostics.png Graphic file (type png)
 <use Images/RB_Diagnostics.png>
-Package pdftex.def Info: Images/RB_Diagnostics.png  used on input line 114.
+Package pdftex.def Info: Images/RB_Diagnostics.png  used on input line 122.
 (pdftex.def)             Requested size: 485.47658pt x 325.3931pt.
 
-Overfull \hbox (23.11926pt too wide) in paragraph at lines 114--115
+Overfull \hbox (23.11926pt too wide) in paragraph at lines 122--123
  [][][] 
  []
 
-[32 <./Images/FinalDivergenceCheck.png>])
+)
 :<-
 [33 <./Images/RB_Diagnostics.png>]
 Package srcltx Info: Expanded filename `./Chapter/Discussion' to `./Chapter/Discussion.tex' on input line 102.
@@ -1436,18 +1436,18 @@ Package rerunfilecheck Info: File `Navier_Stokes_Report.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 32917 strings out of 474222
- 616662 string characters out of 5748733
- 1944975 words of memory out of 5000000
- 54072 multiletter control sequences out of 15000+600000
+ 32919 strings out of 474222
+ 616693 string characters out of 5748733
+ 1943975 words of memory out of 5000000
+ 54073 multiletter control sequences out of 15000+600000
  645574 words of font info for 217 fonts, out of 8000000 for 9000
  1142 hyphenation exceptions out of 8191
  108i,10n,108p,11018b,790s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmex10.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi12.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi6.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi8.pfb></usr/share/texmf/fonts/type1/public/lm/lmmib10.pfb></usr/share/texmf/fonts/type1/public/lm/lmr10.pfb></usr/share/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share/texmf/fonts/type1/public/lm/lmr17.pfb></usr/share/texmf/fonts/type1/public/lm/lmr6.pfb></usr/share/texmf/fonts/type1/public/lm/lmr8.pfb></usr/share/texmf/fonts/type1/public/lm/lmri12.pfb></usr/share/texmf/fonts/type1/public/lm/lmro12.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy10.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy6.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy8.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on Navier_Stokes_Report.pdf (38 pages, 1584622 bytes).
+Output written on Navier_Stokes_Report.pdf (38 pages, 1585586 bytes).
 PDF statistics:
- 680 PDF objects out of 1000 (max. 8388607)
- 571 compressed objects within 6 object streams
- 233 named destinations out of 1000 (max. 500000)
- 45825 words of extra memory for PDF output out of 51595 (max. 10000000)
+ 686 PDF objects out of 1000 (max. 8388607)
+ 577 compressed objects within 6 object streams
+ 234 named destinations out of 1000 (max. 500000)
+ 45833 words of extra memory for PDF output out of 51595 (max. 10000000)
 

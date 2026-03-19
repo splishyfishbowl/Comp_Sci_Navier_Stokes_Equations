@@ -5,7 +5,8 @@
 
 The focus of this project is the numerical solution of the incompressible Navier-Stokes equations in a two-dimensional domain subject to a thermal gradient. Unlike many steady-state engineering problems, this project follows a transient simulation approach. This is dictated by the physics of Rayleigh-Benard convection, where our objective is to observe the evolution of ``convection cells'' from an initial state of rest toward dynamic equilibrium.
 
-The system consists of a fluid confined between two horizontal plates; the bottom plate is heated, while the top plate is kept cold. Based on the Boussinesq approximation, density variations are neglected in all terms \textbf{except for the buoyancy term} in the vertical momentum equation ($\beta T e_z$). This coupling allows temperature differences to drive fluid motion. Consequently, we should solve a coupled system of three Partial Differential Equations (PDEs): continuity (mass conservation), Navier-Stokes (momentum), and the energy (heat) equation.
+The system consists of a fluid confined between two horizontal plates; the bottom plate is heated, while the top plate is kept cold. Based on the Boussinesq approximation, density variations are neglected in all terms \textbf{except for the buoyancy term} in the vertical momentum equation ($\beta T e_z$). 
+This coupling allows temperature differences to drive fluid motion. Consequently, the task involved the solution of a coupled system of three Partial Differential Equations (PDEs): continuity (mass conservation), Navier-Stokes (momentum), and the energy (heat) equation.
 
 \section{Boundary Conditions}
 

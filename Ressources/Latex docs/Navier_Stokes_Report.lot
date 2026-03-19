@@ -1,8 +1,8 @@
 \babel@toc {english}{}\relax 
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {2.1}{\ignorespaces \textbf {Dsicretized Boundary Conditions (BC)} Boundary conditions for all of the four boundaries of the twodimensional domain $\Omega = [0,1]^2$. Each row represents one boundary and shows the continous and numerical representation of the boundary conditions given in the task. Numerical approximation was performed by using a central finite difference approach.}}{16}{table.2.1}%
+\contentsline {table}{\numberline {2.1}{\ignorespaces Initial condition modes}}{17}{table.caption.21}%
 \addvspace {10\p@ }
-\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Divergence Comparison}}{28}{table.caption.49}%
 \addvspace {10\p@ }
 \providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 

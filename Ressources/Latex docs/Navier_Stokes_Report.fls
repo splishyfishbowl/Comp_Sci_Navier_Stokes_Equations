@@ -427,8 +427,13 @@ INPUT /usr/share/texmf/fonts/tfm/public/lm/lmbsy10.tfm
 INPUT /usr/share/texmf/fonts/tfm/public/lm/lmbsy7.tfm
 INPUT /var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map
 INPUT /usr/share/texmf/fonts/enc/dvips/lm/lm-ec.enc
-OUTPUT ./Chapter/abstract_eng.aux
+INPUT ./Chapter/Abstract.tex
+INPUT ./Chapter/Abstract.tex
+INPUT ./Chapter/Abstract.tex
+INPUT ./Chapter/Abstract.tex
+INPUT ./Chapter/Abstract.tex
 INPUT /usr/share/texmf/fonts/tfm/public/lm/ec-lmbx12.tfm
+OUTPUT ./Chapter/abstract_eng.aux
 INPUT ./Navier_Stokes_Report.toc
 INPUT ./Navier_Stokes_Report.toc
 INPUT Navier_Stokes_Report.toc
@@ -448,6 +453,9 @@ INPUT ./Chapter/Introduction.tex
 INPUT ./Chapter/Introduction.tex
 INPUT /usr/share/texmf/fonts/tfm/public/lm/ec-lmbx12.tfm
 INPUT /usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc
+INPUT /usr/share/texmf/fonts/enc/dvips/lm/lm-rm.enc
+INPUT /usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc
+INPUT /usr/share/texmf/fonts/tfm/public/lm/ec-lmro12.tfm
 INPUT ./Images/heat-diffusion2.png
 INPUT ./Images/heat-diffusion2.png
 INPUT ./Images/heat-diffusion2.png
@@ -472,9 +480,6 @@ INPUT ./Images/turbulent3.png
 INPUT ./Images/turbulent3.png
 INPUT ./Images/turbulent3.png
 INPUT ./Images/turbulent3.png
-INPUT /usr/share/texmf/fonts/tfm/public/lm/ec-lmro12.tfm
-INPUT /usr/share/texmf/fonts/enc/dvips/lm/lm-rm.enc
-INPUT /usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc
 INPUT ./Chapter/Theoretical Background.tex
 INPUT ./Chapter/Theoretical Background.tex
 INPUT ./Chapter/Theoretical Background.tex

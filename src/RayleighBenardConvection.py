@@ -452,6 +452,23 @@ def main(v, w, p, y, z, Y, Z, ic_mode="mode1", ic_custom_v=None, ic_custom_w=Non
     # run coupled simulation
     v, w, p, T = rayleigh_benard_simulation(nt_rb=10000, v=v, w=w, p=p, T=T, Z=Z, verbose_every=500, safety=0.4)
 
+    # final divergence check
+    div_final = nsf.divergence(v, w)
+
+    max_div = np.max(np.abs(div_final))
+    mean_div = np.mean(np.abs(div_final))
+
+    print(f"\nFINAL DIVERGENCE CHECK:")
+    print(f"Max divergence  = {max_div:.3e}")
+    print(f"Mean divergence = {mean_div:.3e}")
+
+    plt.figure()
+    plt.contourf(div_final.T, levels=30)
+    plt.title("Final Divergence Check")
+    plt.colorbar()
+    plt.savefig(f"./imgs/rb_divergence_{ic_mode}.png", dpi=150)
+    plt.show()
+    
     # plot final state
     plot_rb_state(y, z, v, w, T, ic_mode, title=f"Rayleigh-Benard state, beta={beta}")
 

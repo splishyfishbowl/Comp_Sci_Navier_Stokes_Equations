@@ -1,0 +1,18 @@
+\chapter{Conclusion}
+
+We solved the two-dimensional system of equations that describe incompressible fluid dynamics.
+To do this, we first dealt with the simpler case of linear advection and were able to show that our methods were accurate compared to analytical solutions.
+Here, we also implemented Lie-Splitting to reduce computational cost.
+We then extended our numerical procedure to respect the incompressible characteristics:
+Chorin's projection method allowed us to reduce the dimensionality of the problem by accepting a numerical error.
+The pressure was calculated by solving the Poisson equation that could be derived from the incompressibility constraint.
+We can show that the error remains bounded. 
+To further minimize it, we implemented spectral methods to solve the Poisson equation.
+The resulting divergence can be reduced to within machine precision.
+Lastly, these methods proved to be suitable for reproducing Rayleigh-B\'{e}nard convection cells.
+This was done by certain parametrization and initialization of the model. 
+Initial conditions with small perturbations were introduced to trigger the emergence of convective behaviour.
+The parameters $\beta= 50.0$ (related to buoyancy) and $\nu = 0.005$ (viscosity) yielded the desired result and are consistent with Rayleigh theory.
+Overall, we consider the project to be a successful numerical solution of the incompressible Navier-Stokes problem.
+
+

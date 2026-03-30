@@ -1,0 +1,96 @@
+\chapter{Introduction}
+
+\section{Introduction and Physics of the Problem}
+
+
+The focus of this project is the numerical solution of the incompressible Navier-Stokes equations in a two-dimensional domain subject to a thermal gradient. Unlike many steady-state engineering problems, this project follows a transient simulation approach. This is dictated by the physics of Rayleigh-Benard convection, where our objective is to observe the evolution of ``convection cells'' from an initial state of rest toward dynamic equilibrium.
+
+The system consists of a fluid confined between two horizontal plates; the bottom plate is heated while the top plate is kept cold. Based on the Boussinesq approximation, density variations are neglected in all terms except for the buoyancy term in the vertical momentum equation ($\beta T e_z$). 
+This coupling allows temperature differences to drive fluid motion. Consequently, the task involved the solution of a coupled system of three Partial Differential Equations (PDEs): continuity (mass conservation), Navier-Stokes (momentum) and the energy (heat) equation.
+
+\section{System of Equations and Numerical Methods}
+To solve the Navier-Stokes equations that describes incompressible flow, we use different methods to ensure convergence and computational efficiency.
+We implemented explicit numerical schemes, operator splitting and spectral methods to model incompressible flow.
+These methods address the complexity of the system of partial differential equations (PDE):
+
+\begin{align}
+\partial_t T + \vec u \cdot \nabla T &= \Delta T \\
+\partial_t \vec u + \vec u \cdot \nabla \vec u + \frac{1}{\rho} \nabla p
+&= \nu \Delta \vec u + T \beta e_z \\
+\nabla \cdot \vec u &= 0 \\
+\vec u(0,y,z) &= \vec u_0(y,z) \\
+T(0,y,z) &= T_0(y,z)
+\end{align}
+
+We consider values in the domain $y,z \in \Sigma = [0,1]^2$ and $t \in [0, t_{end}]$.
+We additionally set the following boundary conditions provided by the project description. 
+
+
+\begin{align}
+\vec u (t,0,z) &= \vec u (t,1,z) \\
+w(t,y,0) &= 0 = w(t,y,1) \\
+T(t,y,0) &= 1 \\
+T(t,y,0) &= 0 \\
+T(t,0,z) &= T(t,1,z) 
+\end{align}
+
+In the following chapters, we will deal with different aspects of the numerical solution of this system of equations.
+Finally, our goal is the reproduction of Rayleigh-B\'{e}nard convection cells due to thermal heating.
+
+
+
+
+
+% [Boundary conditions content to be added]
+
+\section{Rayleigh-B\'{e}nard Convection}
+
+Rayleigh-B\'{e}nard convection cells can be observed in everyday situations such as a boiling kettle or in atmospheric studies. They form when a fluid (such as water or air) is heated from below, causing it to circulate through its entire depth by rising from the bottom, cooling near the top, and sinking again in a repeating loop.
+
+To describe this phenomenon using the example of a water kettle placed on a heater, as the fluid at the bottom begins to warm it becomes less dense and therefore more buoyant. The warmer fluid rises toward the surface while the cooler and denser fluid sinks downward to replace it. As this process continues, a pattern can be observed forming in the fluid flow. These patterns are known as B\'{e}nard cells and are caused by Rayleigh-B\'{e}nard convection.
+
+As the warm fluid reaches the surface it spreads outward across the top of the container, while the cooler fluid moves inward and downward along the edges of the cells. Once the fluid reaches these cooler regions it begins to lose heat and sink back down toward the bottom of the container where it can be reheated. This process creates a continuous circulation loop in the fluid. When the temperature difference across the fluid layer becomes sufficiently large, these convection cells form stable and organized patterns across the surface of the fluid. The center of each cell is typically warmer, while the boundaries between cells are cooler, producing the characteristic cellular pattern.
+
+\subsubsection{Rayleigh Number}
+
+Whether or not B\'{e}nard cells form is determined by a non-dimensional quantity called the Rayleigh number ($Ra$). The Rayleigh number represents the ratio of buoyancy forces that drive convection to the stabilizing effects of thermal diffusion and viscous damping within the fluid.
+
+\begin{equation}
+    Ra_x = \frac{g\beta(T_b - T_u)x^3}{\nu\alpha} = Gr_x \, Pr
+\end{equation}
+
+\begin{equation}
+    Gr_x = \frac{g\beta(T_b - T_u)x^3}{\nu^2}
+\end{equation}
+
+\begin{equation}
+    Pr = \frac{\nu}{\alpha}
+\end{equation}
+
+In these expressions, $g$ is the acceleration due to gravity, $\beta$ is the thermal expansion coefficient of the fluid, $\nu$ and $\alpha$ are the fluid kinematic viscosity and thermal diffusivity respectively. The term $(T_b - T_u)$ represents the temperature difference between the bottom and top of the fluid layer, and $x$ (or $L$) represents the height of the fluid layer.
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.3\textwidth}
+        \includegraphics[width=\textwidth]{Images/heat-diffusion2.png}
+        \caption{Heat diffuses upward by conduction. No fluid motion yet.}
+    \end{subfigure}
+    \begin{subfigure}{0.3\textwidth}
+        \includegraphics[width=\textwidth]{Images/convection2.png}
+        \caption{When $Ra > 1708$, convection begins and convection cells form.}
+    \end{subfigure}
+    \begin{subfigure}{0.3\textwidth}
+        \includegraphics[width=\textwidth]{Images/turbulent3.png}
+        \caption{At high Rayleigh number, turbulent convection occurs.}
+    \end{subfigure}
+    \caption{\textbf{Rayleigh-B\'{e}nard Convection \citep{chang2026}{(Chang, n.d.)}}}
+    \label{fig:Ranumber}
+\end{figure}
+The Rayleigh number can also be expressed as the product of two other dimensionless numbers: the Grashof number ($Gr$) and the Prandtl number ($Pr$). The Grashof number represents the ratio of buoyancy forces to viscous forces in the fluid, while the Prandtl number represents the ratio of momentum diffusion (viscous effects) to thermal diffusion.
+
+For a horizontal fluid layer heated from below, convection begins when the Rayleigh number exceeds a critical value of approximately $1708$ (see Figure \ref{fig:Ranumber}). If the Rayleigh number is less than $1708$ ($Ra < 1708$), heat transfer takes place mainly through thermal conduction, and the fluid layer remains stable with little or no circulation. When the Rayleigh number exceeds $1708$ ($Ra > 1708$), the fluid becomes unstable and organized convection cells begin to form, producing the characteristic Rayleigh-B\'{e}nard cell pattern. Therefore, low Rayleigh numbers indicate weaker convection and higher Rayleigh numbers indicate stronger, more intense convection.
+
+
+
+
+
+

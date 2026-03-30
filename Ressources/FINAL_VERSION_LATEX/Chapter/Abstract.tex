@@ -1,0 +1,24 @@
+\thispagestyle{empty}
+
+
+\vspace*{1cm}
+
+\begin{center}
+    \textbf{Abstract}
+    
+\end{center}
+    The simulation of fluid dynamics is a classical physical problem and is described by the Navier-Stokes equations. 
+    Nevertheless, it is still a matter of research as it is hard to solve.
+    Analytical solutions exist only for specific simple cases.
+    In more general cases, numerical methods are necessary to solve the system of partial differential equations.
+    Here, not only the convergence of the method but also the computational efficiency are crucial to model accurate physical behavior.
+    In this work, we use Operator splitting and Spectral methods to obtain numerical solutions of two-dimensional incompressible fluid dynamics.
+    First, we deal with linear advection and implement Lie-Splitting to gain computational efficiency.
+    Further, we then extend this approach to respect the incompressibility constraint by using Chorin's projection method.
+    Here we obtain a Poisson equation that enables us to correct the pressure field to match the incompressible characteristics.
+    In particular, the solution of such Poisson equation is performed in two different ways which we evaluate.
+    We (1) use the Jacobi method and find that it is not suitable for our desired degree of accuracy. 
+    We therefore (2) implement spectral methods to address this issue.
+    Finally, these improvements let us reproduce Rayleigh-B\'{e}nard Convection cells and ensure that the incompressibility constraint is satisfied.
+\vspace*{1cm}
+

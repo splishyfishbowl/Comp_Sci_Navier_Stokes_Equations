@@ -1,0 +1,56 @@
+\babel@toc {english}{}\relax 
+\contentsline {chapter}{\nonumberline List of Figures}{v}{chapter*.2}%
+\contentsline {chapter}{\nonumberline List of Tables}{vi}{chapter*.3}%
+\contentsline {chapter}{\numberline {1}Introduction}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Introduction and Physics of the Problem}{1}{section.1.1}%
+\contentsline {section}{\numberline {1.2}System of Equations and Numerical Methods}{1}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Rayleigh-B\'{e}nard Convection}{2}{section.1.3}%
+\contentsline {subsubsection}{\nonumberline Rayleigh Number}{3}{subsubsection*.5}%
+\contentsline {chapter}{\numberline {2}Methodology}{5}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Operator Splitting}{5}{section.2.1}%
+\contentsline {subsubsection}{\nonumberline First order Operator Splitting}{6}{subsubsection*.8}%
+\contentsline {subsubsection}{\nonumberline Second Order Operator Splitting (Strang-Splitting)}{7}{subsubsection*.10}%
+\contentsline {section}{\numberline {2.2}The Velocity Equation}{8}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Operator splitting for the Velocity Equation}{10}{subsection.2.2.1}%
+\contentsline {section}{\numberline {2.3}Upwind Finite Difference Method}{11}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Stability of the Operators}{13}{subsection.2.3.1}%
+\contentsline {section}{\numberline {2.4}Two-Dimensional Upwind Scheme with Operator Splitting}{14}{section.2.4}%
+\contentsline {section}{\numberline {2.5}Incompressible Flow}{16}{section.2.5}%
+\contentsline {subsection}{\numberline {2.5.1}Problem Setup}{16}{subsection.2.5.1}%
+\contentsline {paragraph}{\nonumberline Periodicity in $y$.}{16}{paragraph*.12}%
+\contentsline {paragraph}{\nonumberline Wall conditions at $z = 0$ and $z = L_z$.}{16}{paragraph*.14}%
+\contentsline {section}{\numberline {2.6}Initial Conditions}{17}{section.2.6}%
+\contentsline {paragraph}{\nonumberline Divergence-free condition.}{17}{paragraph*.16}%
+\contentsline {paragraph}{\nonumberline Boundary conditions.}{17}{paragraph*.18}%
+\contentsline {paragraph}{\nonumberline Implemented modes.}{17}{paragraph*.20}%
+\contentsline {section}{\numberline {2.7}Time Step Selection}{18}{section.2.7}%
+\contentsline {paragraph}{\nonumberline Advection limit (CFL condition).}{18}{paragraph*.23}%
+\contentsline {paragraph}{\nonumberline Diffusion limit (von Neumann condition).}{19}{paragraph*.25}%
+\contentsline {paragraph}{\nonumberline Combined condition.}{19}{paragraph*.27}%
+\contentsline {section}{\numberline {2.8}Chorin's Projection Method}{19}{section.2.8}%
+\contentsline {subsubsection}{\nonumberline Predictor Step}{20}{subsubsection*.29}%
+\contentsline {paragraph}{\nonumberline Advection.}{20}{paragraph*.31}%
+\contentsline {paragraph}{\nonumberline Diffusion.}{21}{paragraph*.33}%
+\contentsline {paragraph}{\nonumberline Boundary conditions.}{21}{paragraph*.35}%
+\contentsline {subsubsection}{\nonumberline Pressure Poisson Equation}{21}{subsubsection*.37}%
+\contentsline {paragraph}{\nonumberline Compatibility Condition.}{21}{paragraph*.39}%
+\contentsline {paragraph}{\nonumberline Spectral Diagonalization.}{22}{paragraph*.41}%
+\contentsline {paragraph}{\nonumberline Gauge Fix and Inversion.}{22}{paragraph*.43}%
+\contentsline {paragraph}{\nonumberline Treatment of complex transforms.}{23}{paragraph*.45}%
+\contentsline {subsubsection}{\nonumberline Projection Step}{23}{subsubsection*.47}%
+\contentsline {section}{\numberline {2.9}Summary}{23}{section.2.9}%
+\contentsline {section}{\numberline {2.10}Rayleigh-Benard Convection}{24}{section.2.10}%
+\contentsline {subsection}{\numberline {2.10.1}Physical Model}{24}{subsection.2.10.1}%
+\contentsline {subsection}{\numberline {2.10.2}Initial and Boundary Conditions}{25}{subsection.2.10.2}%
+\contentsline {subsection}{\numberline {2.10.3}Solution Strategy}{27}{subsection.2.10.3}%
+\contentsline {chapter}{\numberline {3}Results and Discussion}{28}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Numerical Verification of Advection}{28}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Analysis of the Projection Method Step}{29}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}Stability and Time-Stepping}{29}{subsection.3.2.1}%
+\contentsline {section}{\numberline {3.3}Rayleigh-Benard Convection}{32}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Poisson Solvers: Divergence analysis}{32}{subsection.3.3.1}%
+\contentsline {section}{\numberline {3.4}Rayleigh-B\'{e}nard Convection Results}{34}{section.3.4}%
+\contentsline {chapter}{\numberline {4}Conclusion}{36}{chapter.4}%
+\contentsline {chapter}{\nonumberline Bibliography}{37}{chapter*.56}%
+\contentsline {chapter}{\nonumberline Appendix}{38}{chapter*.57}%
+\providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 
